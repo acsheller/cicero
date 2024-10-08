@@ -8,7 +8,7 @@ __pycache__/
 
 
 *.txt
-*.poetrylock
+*.pkl
 
 # Distribution / packaging
 .Python
