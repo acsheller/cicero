@@ -1,0 +1,28 @@
+version: '3.8'
+
+services:
+  fabric:
+    image: golang:1.20  # Use the latest stable Go version
+    container_name: fabric-container
+    volumes:
+      - ./fabric:/go/src/fabric
+    working_dir: /go/src/fabric
+    command: go install github.com/danielmiessler/fabric@latest
+    build:
+      context: .
+      dockerfile: Dockerfile.fabric
+    networks:
+      - shared-network
+
+  ollama:
+    image: ollama/ollama:latest  # Use the latest Ollama image
+    container_name: ollama-container
+    networks:
+      - shared-network
+    ports:
+      - "11400:11400"  # Map the port Ollama uses to the host
+    restart: always  # Ensure the Ollama container stays up
+    
+networks:
+  shared-network:
+    driver: bridge
