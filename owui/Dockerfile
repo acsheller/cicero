@@ -1,0 +1,33 @@
+# Start from Python 3.11 image
+FROM python:3.11
+
+# Create a non-root user and group named 'owui'
+RUN groupadd -r owui && useradd --no-log-init -r -g owui owui
+
+# Set the working directory
+WORKDIR /app
+
+# Upgrade pip at the root level to ensure the latest version
+RUN pip install --upgrade pip
+
+# Create the owui home directory and set permissions
+RUN mkdir -p /home/owui && chown owui:owui /home/owui
+
+# Set permissions for the /app directory so 'owui' can access it
+RUN chown -R owui:owui /app
+
+# Switch to 'owui' user before installing packages
+USER owui
+
+# Create a virtual environment in the owui user's home directory
+RUN python -m venv /home/owui/venv
+
+# Activate the virtual environment and install open-webui
+ENV PATH="/home/owui/venv/bin:${PATH}"
+RUN pip install open-webui
+
+# Expose port 8080
+EXPOSE 8080
+
+# Run the open-webui server within the virtual environment
+CMD ["open-webui", "serve"]

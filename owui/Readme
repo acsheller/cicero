@@ -1,0 +1,26 @@
+# OWUI (Open Web UI)
+
+https://github.com/open-webui/open-webui
+
+## Build the docker file in this directory
+
+```.bash
+
+docker build -t open-webui-app .
+
+```
+
+## Run it
+
+
+
+
+```.bash
+# Create the cicero network
+docker network create cicero
+
+docker run -d --gpus=all -v /home/asheller/ollama_models:/root/.ollama -p 11434:11434 --network cicero --name ollama ollama/ollama
+
+docker run -it -p 8080:8080 --network cicero --name open-webui-container open-webui-app
+
+```

@@ -1,0 +1,31 @@
+version: '3.8'
+
+networks:
+  cicero:
+    driver: bridge
+
+services:
+  ollama:
+    image: ollama/ollama
+    container_name: ollama
+    networks:
+      - cicero
+    ports:
+      - "11434:11434"
+    volumes:
+      - /home/asheller/ollama_models:/root/.ollama
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - capabilities: ["gpu"]
+
+  open-webui:
+    image: open-webui-app
+    container_name: open-webui-container
+    networks:
+      - cicero
+    ports:
+      - "8080:8080"
+    stdin_open: true  # equivalent to -it
+    tty: true
