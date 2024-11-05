@@ -21,11 +21,27 @@ services:
             - capabilities: ["gpu"]
 
   open-webui:
-    image: open-webui-app
+    build:
+      context: .
+      dockerfile: Dockerfile.owui
     container_name: open-webui-container
     networks:
       - cicero
     ports:
       - "8080:8080"
-    stdin_open: true  # equivalent to -it
+    stdin_open: true
+    tty: true
+
+  fabric:
+    build:
+      context: .
+      dockerfile: Dockerfile.fabric
+    container_name: fabric-container
+    networks:
+      - cicero
+    volumes:
+      - ./fabric-config:/home/fab_user/.config/fabric  # Mount the config folder
+    ports:
+      - "8000:8000"
+    stdin_open: true
     tty: true

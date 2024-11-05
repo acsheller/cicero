@@ -1,0 +1,29 @@
+# Use the base golang image
+FROM golang:1.23
+
+# Set up environment variables for Python (if needed)
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV PYTHONUNBUFFERED=1
+
+
+# Create a non-root user and set permissions
+RUN useradd -ms /bin/bash fab_user && chown -R fab_user /home/fab_user/
+
+# Switch to the non-root user
+USER fab_user
+
+# Set the working directory in the container
+WORKDIR /home/fab_user
+
+
+# Install Fabric
+RUN go install github.com/danielmiessler/fabric@latest
+
+# Set up environment variable for Ollama API URL
+ENV OLLAMA_API_URL=http://ollama:11434
+
+# Expose any necessary ports for Fabric (adjust if needed)
+EXPOSE 8000
+
+# Default to bash for now
+CMD ["/bin/bash"]
