@@ -1,26 +1,39 @@
 # OWUI (Open Web UI)
 
-https://github.com/open-webui/open-webui
+This container composition  is comporised of [https://ollama.com/](Ollama), [Open WebUI](https://github.com/open-webui/open-webui), [Fabric](https://github.com/danielmiessler/fabric), content from the [Recommenders team](https://github.com/recommenders-team/recommenders/tree/main), and [SUBER](https://github.com/SUBER-Team/SUBER).  
 
-## Build the docker file in this directory
+The theme is advancements in recommenders which is covered very well by the recommenders team.  SUBER combines large language models (LLMs) and reinforcement learning to provide recommenders.  
+
+This specific work advanced SUBER with optimal LLM tooling, containerization, and prompt engineering using Open Source products mentioned.
+
+## Getting Started
+
+Make a directory to hold the models called `~/ollama_models`. Models will be pulled from Ollama and stored here for use by the system.
+
+Clone the [cicero]() Repo.  Currently, most work is done in [cicero/owui](../owui/) but clone the whole thing for now. Both `Fabric` and `Open WebUI` have there own docker files that can be built when executing `docker-compose up`. `Ollama` uses the `ollama container` so arguments are just added.  Please review the docker  and the docker-compose - `compose.yml`.
+
+Please pay close attention to the environment variables set in the [docker file for Open WebUI](./Dockerfile.owui).  Cross reference with what is currently set with what you want and what is listed on the [env-configuraiton page for Open WebUI](https://docs.openwebui.com/getting-started/env-configuration/).
+
 
 ```.bash
 
-docker build -t open-webui-app .
+    git clone https://github.com/acsheller/cicero
+
+    # Build and bring up all containers.
+
+    docker-compuse up --build -d
+
+
 
 ```
 
-## Run it
+After its up go to http://localhost:8080 for the Open WebUI interface.  Ollama is available on http://localhost:11434.
 
 
-
-
-```.bash
-# Create the cicero network
-docker network create cicero
-
-docker run -d --gpus=all -v /home/asheller/ollama_models:/root/.ollama -p 11434:11434 --network cicero --name ollama ollama/ollama
-
-docker run -it -p 8080:8080 --network cicero --name open-webui-container open-webui-app
+## Stopping things
 
 ```
+docker-compose down
+
+```
+

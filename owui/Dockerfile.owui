@@ -19,11 +19,21 @@ RUN chown -R owui:owui /app
 # Switch to 'owui' user before installing packages
 USER owui
 
+# Set up environment variable for Ollama API URL
+ENV OLLAMA_BASE_URL=http://ollama:11434
+ENV WEBUI_AUTH="False"
+ENV DATA_DIR="/app/backend/data"
+ENV DEFAULT_MODELS="llama3.2"
+
+
+
 # Create a virtual environment in the owui user's home directory
 RUN python -m venv /home/owui/venv
 
 # Activate the virtual environment and install open-webui
 ENV PATH="/home/owui/venv/bin:${PATH}"
+
+
 RUN pip install open-webui
 
 # Expose port 8080

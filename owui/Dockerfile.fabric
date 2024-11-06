@@ -1,10 +1,14 @@
 # Use the base golang image
 FROM golang:1.23
 
+# Install Python 3.11 and curl
+RUN apt-get update && \
+    apt-get install -y python3.11 python3.11-venv curl && \
+    rm -rf /var/lib/apt/lists/*
+
 # Set up environment variables for Python (if needed)
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
-
 
 # Create a non-root user and set permissions
 RUN useradd -ms /bin/bash fab_user && chown -R fab_user /home/fab_user/
@@ -15,15 +19,30 @@ USER fab_user
 # Set the working directory in the container
 WORKDIR /home/fab_user
 
-
 # Install Fabric
 RUN go install github.com/danielmiessler/fabric@latest
+
+# Create a virtual environment for Python and install Flask
+RUN python3.11 -m venv venv && \
+    . venv/bin/activate && \
+    pip install --upgrade pip && \
+    pip install Flask
+
+# Add the virtual environment to PATH
+ENV PATH="/home/fab_user/venv/bin:$PATH"
+
+# Copy the Flask API script into the container
+COPY fabric_rest_svc.py /home/fab_user/fabric_rest_svc.py
 
 # Set up environment variable for Ollama API URL
 ENV OLLAMA_API_URL=http://ollama:11434
 
-# Expose any necessary ports for Fabric (adjust if needed)
+# Expose the port for the Flask API
 EXPOSE 8000
+
+# Default command to run the Flask API server
+#CMD ["python3", "fabric_rest_svc.py"]
+
 
 # Default to bash for now
 CMD ["/bin/bash"]

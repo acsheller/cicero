@@ -29,8 +29,15 @@ services:
       - cicero
     ports:
       - "8080:8080"
+    volumes:
+      - ./openwebui-data:/app/backendq  # Persist open-webui data
     stdin_open: true
     tty: true
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - capabilities: ["gpu"]
 
   fabric:
     build:
@@ -40,7 +47,7 @@ services:
     networks:
       - cicero
     volumes:
-      - ./fabric-config:/home/fab_user/.config/fabric  # Mount the config folder
+      - ./fabric-config:/home/fab_user/.config/fabric
     ports:
       - "8000:8000"
     stdin_open: true
