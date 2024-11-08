@@ -1,0 +1,13 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "SuberX",
+            "type": "debugpy",
+            "request": "launch",
+            "module": "algorithms.mind.CF_train_A2C2",
+            "cwd": "${workspaceFolder}",  // This sets the working directory
+            "justMyCode": false
+        }
+    ]
+}

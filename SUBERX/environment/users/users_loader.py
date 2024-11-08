@@ -1,0 +1,80 @@
+import os
+from typing import List
+from .user import User
+from abc import ABC, abstractmethod
+import pandas as pd
+
+
+class UsersLoader(ABC):
+    @abstractmethod
+    def get_users(self) -> List[User]:
+        pass
+
+
+class UsersListLoader(UsersLoader):
+    def __init__(
+        self,
+        users_list: List[User],
+    ):
+        self.users_list = users_list
+
+    def get_users(self) -> List[User]:
+        i = 0
+        for user in self.users_list:
+            user.id = i
+            i += 1
+        return self.users_list
+
+
+class UsersCSVLoader(UsersLoader):
+
+    """
+    This class is used to load users from a csv file.
+    The csv file must have the following columns:
+    - name
+    - gender
+    - age
+    - description
+
+    The default location of the csv is in environment/users/datasets
+
+    Args:
+        name (str): name of the csv file
+        base_dir (str, optional): base directory of the csv file. Defaults to "./datasets".
+
+    """
+
+    def __init__(
+        self,
+        name: str,
+        base_dir: str = os.path.join(os.path.dirname(__file__), "./datasets"),
+    ):
+        #print("os path thing {}".format(os.path.dirname(__file__)))
+        #print("name is {}".format(name))
+        #print("basedir is {}".format(base_dir))
+        self.path = os.path.join(base_dir, name + ".csv")
+        #print("self.path is {}".format(self.path))
+        
+    def get_users(self) -> List[User]:
+        #print("self.path in user_loader is {}".format(self.path))
+        df = pd.read_csv(self.path)
+        users_list = []
+        i = 0
+        for index, row in df.iterrows():
+            user = User(
+                name=row["name"],
+                gender=row["gender"],
+                age=int(row["age"]),
+                description=row["description"],
+                job=row["job"] if "job" in row else "",
+                hobby=row["hobby"] if "hobby" in row else "",
+            )
+            if "primary_news_interest" in row:
+                user.primary_news_interest = row["primary_news_interest"]
+            if "secondary_news_interrest" in row:
+                user.secondary_news_interest = row["secondary_news_interrest"]
+
+            user.id = i
+            i += 1
+            users_list.append(user)
+        return users_list
