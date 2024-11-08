@@ -30,7 +30,7 @@ services:
     ports:
       - "8080:8080"
     volumes:
-      - ./openwebui-data:/app/backendq  # Persist open-webui data
+      - ./openwebui-data:/app/backend # Persist open-webui data
     stdin_open: true
     tty: true
     deploy:

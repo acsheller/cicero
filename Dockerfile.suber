@@ -1,0 +1,18 @@
+# Start with NVIDIA's PyTorch container
+FROM nvcr.io/nvidia/pytorch:24.08-py3
+
+# Set the working directory
+WORKDIR /app
+
+# Update pip and install Stable Baselines3 and other dependencies
+RUN pip install --upgrade pip
+RUN pip install stable-baselines3[extra] jupyterlab
+
+# Optional: Install any other libraries you need
+# Example: RUN pip install your_other_packages_here
+
+# Expose JupyterLab port (if needed for interactive work)
+EXPOSE 8888
+
+# Set the default command to start a bash shell
+CMD ["/bin/bash"]

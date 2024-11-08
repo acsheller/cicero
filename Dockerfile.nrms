@@ -1,0 +1,44 @@
+# Use the CUDA 12.3 base image for compatibility with TensorFlow 2.15
+FROM nvidia/cuda:12.6.2-cudnn-devel-ubuntu22.04
+
+# Install system dependencies for Python and JupyterLab
+RUN apt-get update && apt-get install -y \
+    python3 python3-pip python3-venv python-is-python3 build-essential libopenblas-dev libatlas-base-dev gcc g++ \
+    && rm -rf /var/lib/apt/lists/*
+
+# Create a non-root user 'nrms'
+RUN useradd -ms /bin/bash nrms
+
+# Set the working directory to /app and change ownership to nrms user
+WORKDIR /app
+RUN chown -R nrms:nrms /app
+
+# Switch to the non-root user 'nrms'
+USER nrms
+
+# Set environment variables for building lightfm
+ENV CFLAGS="-fcommon"
+ENV PYTHONOPTIMIZE=1
+
+
+# Create and activate the virtual environment named 'nrms'
+RUN python3 -m venv /app/nrms_venv
+
+# Set the environment variable to activate the virtual environment by default
+ENV PATH="/app/nrms_venv/bin:$PATH"
+
+
+RUN pip install --upgrade pip setuptools wheel recommenders tensorflow[and-cuda]==2.15.1
+
+# Copy the NRMS model code and JupyterLab notebooks into the container
+# This will assume you have a local folder named 'nrms' with necessary code and notebooks
+#COPY --chown=nrms:nrms ./nrms /app
+
+# Set the default working directory for Jupyter and the NRMS code
+WORKDIR /app/nrms
+
+# Expose the JupyterLab port
+EXPOSE 8888
+
+# Start JupyterLab upon container startup
+CMD ["jupyter-lab", "--ip=0.0.0.0", "--port=8888", "--no-browser", "--allow-root"]
