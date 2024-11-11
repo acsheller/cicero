@@ -3,6 +3,8 @@
 If you are reading this, you are in the docker folder of the SUBER for MIND dataset project.
 The development environment has been containerized for simplicity.
 
+This is OBE but kept around for reference until SUBER running in Docker Compose
+
 ## Building the container
 
 Ideally, you would want it to be your UID and GID so do this:
