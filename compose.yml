@@ -52,3 +52,49 @@ services:
       - "8000:8000"
     stdin_open: true
     tty: true
+
+  nrms:
+    build:
+      context: .
+      dockerfile: Dockerfile.nrms
+    container_name: nrms-container
+    runtime: nvidia  # For GPU support
+    environment:
+      - NVIDIA_VISIBLE_DEVICES=all
+    volumes:
+      - ./nrms:/app/nrms  # Mount your local nrms folder to the container
+      - ./nrms_data:/app/nrms_data  # Mount directory for data persistence
+    ports:
+      - "8888:8888"  # Expose JupyterLab port
+    stdin_open: true  # Keep STDIN open
+    tty: true  # Allocate a pseudo-TTY
+
+  suber:
+    build:
+      context: .
+      dockerfile: Dockerfile.suber
+    container_name: suber-container
+    runtime: nvidia  # GPU support
+    environment:
+      - NVIDIA_VISIBLE_DEVICES=all
+    networks:
+      - cicero
+    volumes:
+      - ./SUBERX:/app/SUBERX  # Mount SUBERX directory to the container
+    ports:
+      - "8889:8889"  # Expose JupyterLab port for suber
+    stdin_open: true  # Keep STDIN open
+    tty: true  # Allocate a pseudo-TTY
+    ipc: host  # Equivalent to --ipc=host
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+      stack:
+        soft: 67108864
+        hard: 67108864
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - capabilities: ["gpu"]

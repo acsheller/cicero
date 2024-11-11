@@ -6,10 +6,13 @@ __pycache__/
 # C extensions
 *.so
 
-nrms/data/*
-openwebui-data/*
+*.db
 *.txt
 *.pkl
+
+openwebui-data/**
+!openwebui-data/.gitkeep
+
 
 # Distribution / packaging
 .Python
@@ -168,3 +171,4 @@ cython_debug/
 
 
 owui/openwebui-data/
+openwebui-data/data/webui.db
