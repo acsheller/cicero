@@ -53,22 +53,6 @@ services:
     stdin_open: true
     tty: true
 
-  nrms:
-    build:
-      context: .
-      dockerfile: Dockerfile.nrms
-    container_name: nrms-container
-    runtime: nvidia  # For GPU support
-    environment:
-      - NVIDIA_VISIBLE_DEVICES=all
-    volumes:
-      - ./nrms:/app/nrms  # Mount your local nrms folder to the container
-      - ./nrms_data:/app/nrms_data  # Mount directory for data persistence
-    ports:
-      - "8888:8888"  # Expose JupyterLab port
-    stdin_open: true  # Keep STDIN open
-    tty: true  # Allocate a pseudo-TTY
-
   suber:
     build:
       context: .
@@ -77,6 +61,7 @@ services:
     runtime: nvidia  # GPU support
     environment:
       - NVIDIA_VISIBLE_DEVICES=all
+      - NVIDIA_DRIVER_CAPABILITIES=compute,utility
     networks:
       - cicero
     volumes:
@@ -93,8 +78,22 @@ services:
       stack:
         soft: 67108864
         hard: 67108864
-    deploy:
-      resources:
-        reservations:
-          devices:
-            - capabilities: ["gpu"]
+
+
+
+  nrms:
+    build:
+      context: .
+      dockerfile: Dockerfile.nrms
+    container_name: nrms-container
+    runtime: nvidia  # For GPU support
+    environment:
+      - NVIDIA_VISIBLE_DEVICES=all
+      - NVIDIA_DRIVER_CAPABILITIES=compute,utility
+    volumes:
+      - ./nrms:/app/nrms  # Mount your local nrms folder to the container
+      - ./nrms_data:/app/nrms_data  # Mount directory for data persistence
+    ports:
+      - "8888:8888"  # Expose JupyterLab port
+    stdin_open: true  # Keep STDIN open
+    tty: true  # Allocate a pseudo-TTY

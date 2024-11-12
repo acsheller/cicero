@@ -6,6 +6,8 @@ RUN apt-get update && apt-get install -y \
     python3 python3-pip python3-venv python-is-python3 build-essential libopenblas-dev libatlas-base-dev gcc g++ \
     && rm -rf /var/lib/apt/lists/*
 
+#RUN apt-get update && apt-get install -y nvidia-utils-535
+
 # Create a non-root user 'suber'
 RUN useradd -ms /bin/bash suber
 
