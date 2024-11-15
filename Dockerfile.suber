@@ -1,6 +1,6 @@
 # Start with NVIDIA's PyTorch container
 #FROM nvidia/cuda:12.6.2-cudnn-devel-ubuntu22.04
-FROM nvcr.io/nvidia/pytorch:24.08-py3
+FROM nvidia/cuda:12.4.1-cudnn-devel-ubuntu22.04
 # Install system dependencies for Python and JupyterLab
 RUN apt-get update && apt-get install -y \
     python3 python3-pip python3-venv python-is-python3 build-essential libopenblas-dev libatlas-base-dev gcc g++ \
@@ -29,11 +29,15 @@ RUN python3 -m venv /app/sb3
 ENV PATH="/app/sb3/bin:$PATH"
 
 # Upgrade pip and install dependencies, create kernel, and set default kernel
-RUN pip install --upgrade pip setuptools wheel ipykernel ipywidgets stable_baselines3[extra] \
-    && pip install sentence-transformers transformers tokenizers \
-    && python -m ipykernel install --user --name sb3 --display-name "Python (sb3)" \
-    && mkdir -p /home/suber/.jupyter \
-    && echo "c.ServerApp.default_kernel_name = 'sb3'" >> /home/suber/.jupyter/jupyter_notebook_config.py
+RUN pip install --upgrade pip setuptools wheel ipykernel ipywidgets jupyterlab tqdm tensorflow[and-cuda]==2.15.1
+RUN pip install torch==2.4.1 torchvision==0.19.1 torchaudio==2.4.1 --index-url https://download.pytorch.org/whl/cu124
+RUN pip install recommenders 
+RUN pip install stable_baselines3 
+RUN pip install sentence-transformers
+#    && pip install sentence-transformers transformers tokenizers \
+#    && python -m ipykernel install --user --name sb3 --display-name "Python (sb3)" \
+#    && mkdir -p /home/suber/.jupyter \
+#    && echo "c.ServerApp.default_kernel_name = 'sb3'" >> /home/suber/.jupyter/jupyter_notebook_config.py
 
 #safetensors==0.4.1 
 
