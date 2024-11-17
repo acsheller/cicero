@@ -213,7 +213,7 @@ class Simulatio4RecSysMind(gym.Env):
         the user would give to the recommended Object.
         """
 
-        ## This is where we are calling our prompt?
+        ## This is where we are calling our prompt!
         with torch.random.fork_rng(["cuda:0"]):
             torch.manual_seed(self.llm_seed)
             rating, explanation, html_interaction = self.rating_prompt.queryMind(

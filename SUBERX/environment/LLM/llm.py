@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import Tuple
+from typing import Tuple, List, Dict
 
 """
 Dialog example
@@ -20,6 +20,8 @@ class LLM(ABC):
             self.conversation_template_name = "llama-2-chat"
         elif "Mistral" in name or "Mixtral" in name:
             self.conversation_template_name = "llama-2-chat"
+        elif name == "llama3.2":
+            self.conversation_template_name = "ollama-chat"            
 
     @abstractmethod
     def request_rating_0_9(self, system_prompt, dialog) -> Tuple[str, str]:
@@ -44,6 +46,8 @@ class LLM(ABC):
             return self.encode_llama(system_prompt, dialog)
         elif self.conversation_template_name == "pretrained":
             return self.encode_pretrained(system_prompt, dialog)
+        elif self.conversation_template_name == 'ollama-chat':
+            return self.encode_ollama(system_prompt, dialog)
 
     def encode_pretrained(self, system_prompt, dialog):
         ret = ""
@@ -122,3 +126,13 @@ class LLM(ABC):
                 elif role == "assistant_start":
                     ret += f" {message}"
         return ret
+
+
+    def encode_ollama(self, system_prompt: str, dialog: List[Dict[str, str]]) -> str:
+        """
+        Encodes the dialog for Ollama API.
+        """
+        ret = f"{system_prompt}\n\n"
+        for d in dialog:
+            ret += f"{d['role']}: {d['content']}\n"
+        return ret.strip()

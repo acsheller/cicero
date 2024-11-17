@@ -85,8 +85,12 @@ class LLMRater(ABC):
             try:
                 rating = self.adjust_rating_out(float(out))
                 #logger.info("rater.py query return rating of {}".format(rating))
+                #print(f"########I'm in the LLM rater")
+                #print(f"######out is {out}")
+                #print(f"#####rating is {rating}")
             except Exception:
                 rating = float(0)
+                #print("########Man it went here! rating is 0")
             if self.random_rating:
                 rating = self.rnd.randint(1, 11)
         elif self.request_scale == "1-10":

@@ -1,5 +1,6 @@
 from .rater import LLMRater
 
+
 INITIAL = [
     "TheBloke/Llama-2-7b-Chat-GPTQ",  # use via exllama, on 8gb gpu
     "TheBloke/Llama-2-13B-chat-GPTQ",  # use via exllama, on 24gb gpu
@@ -17,16 +18,23 @@ INITIAL = [
 
 ]
 
-#TRANSFORMERS_MODELS = [
-    #"TheBloke/Mixtral-8x7B-Instruct-v0.1-GPTQ",
-#    "meta-llama/Meta-Llama-3-8B",
-#]
+TRANSFORMERS_MODELS = [
+    "TheBloke/Mixtral-8x7B-Instruct-v0.1-GPTQ",
+    "meta-llama/Meta-Llama-3-8B",
+]
+
+OLLAMA_MODELS= [
+    'llama3.2',
+    'gemma2',
+    'mistral7b'
+]
 
 
 #SUPPORTED_MODELS = INITIAL + TRANSFORMERS_MODELS
-SUPPORTED_MODELS = INITIAL
+SUPPORTED_MODELS = INITIAL + OLLAMA_MODELS
 
 def load_LLM(name):
+    print(f"name is {name}")
     if not name in SUPPORTED_MODELS:
         raise ValueError(f"Model {name} not supported.")
     elif "gpt-3.5-turbo-0613" == name or "gpt-4-0613" in name or "gpt-4o" in name:
@@ -41,3 +49,7 @@ def load_LLM(name):
         from .std_transformers import Transformers
 
         return Transformers(name)
+    elif name in OLLAMA_MODELS:
+
+        from .ollama import OllamaLLM
+        return OllamaLLM(name)
