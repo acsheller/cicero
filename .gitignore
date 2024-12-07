@@ -328,3 +328,4 @@ nrms/data/demo/valid/news.tsv
 nrms/data/demo/valid/relation_embedding.vec
 SUBERX/datasets/glove_embeddings/glove.6B.zip
 SUBERX/datasets/embedding.npy
+SUBERX/datasets/MINDsmall_train.zip
