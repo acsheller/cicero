@@ -1,43 +1,50 @@
-# Start from Python 3.11 image
-FROM python:3.11
+FROM nvidia/cuda:12.6.2-cudnn-devel-ubuntu22.04
 
-# Create a non-root user and group named 'owui'
-RUN groupadd -r owui && useradd --no-log-init -r -g owui owui
 
-# Set the working directory
+# Disable interactive prompts during the build
+ENV DEBIAN_FRONTEND=noninteractive
+
+# Install Python 3.11 and system dependencies
+RUN apt-get update && apt-get install -y \
+    software-properties-common \
+    && add-apt-repository ppa:deadsnakes/ppa \
+    && apt-get update && apt-get install -y python3.11 python3.11-venv python3.11-dev \
+    python3-pip build-essential libopenblas-dev libatlas-base-dev gcc g++ \
+    && rm -rf /var/lib/apt/lists/*
+
+# Set Python 3.11 as the default Python3
+RUN update-alternatives --install /usr/bin/python3 python3 /usr/bin/python3.11 1
+
+# Create a non-root user 'owui'
+RUN useradd -ms /bin/bash owui
+
+# Set the working directory to /app and change ownership to 'owui' user
 WORKDIR /app
-
-# Upgrade pip at the root level to ensure the latest version
-RUN pip install --upgrade pip
-
-# Create the owui home directory and set permissions
-RUN mkdir -p /home/owui && chown owui:owui /home/owui
-
-# Set permissions for the /app directory so 'owui' can access it
 RUN chown -R owui:owui /app
 
-# Switch to 'owui' user before installing packages
 USER owui
+ENV CFLAGS="-fcommon"
+ENV PYTHONOPTIMIZE=1
 
-# Set up environment variable for Ollama API URL
+# Create a virtual environment with Python 3.11
+RUN python3 -m venv /app/owui
+
+# Set environment variables for Ollama and WebUI
 ENV OLLAMA_BASE_URL=http://ollama:11434
 ENV WEBUI_AUTH="False"
 ENV DATA_DIR="/app/backend/data"
 ENV DEFAULT_MODELS="llama3.2"
+ENV PATH="/app/owui/bin:/usr/local/cuda/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+ENV TORCH_CUDA_ARCH_LIST='6.0;6.1;7.0;7.2;7.5;8.0;8.6+PTX;8.9;9.0'
+ENV TF_CPP_MIN_LOG_LEVEL=3
+ENV CUDA_VISIBLE_DEVICES=0  
 
-
-
-# Create a virtual environment in the owui user's home directory
-RUN python -m venv /home/owui/venv
-
-# Activate the virtual environment and install open-webui
-ENV PATH="/home/owui/venv/bin:${PATH}"
-
-
-RUN pip install open-webui
+# Upgrade pip and install dependencies
+RUN pip install --upgrade pip setuptools wheel ipykernel ipywidgets jupyterlab tqdm \
+    && pip install open-webui
 
 # Expose port 8080
 EXPOSE 8080
 
-# Run the open-webui server within the virtual environment
+# Run the open-webui server
 CMD ["open-webui", "serve"]

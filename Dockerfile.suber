@@ -1,4 +1,4 @@
-# Start with NVIDIA's PyTorch container
+# Start with NVIDIA's development container
 FROM nvidia/cuda:12.6.2-cudnn-devel-ubuntu22.04
 #FROM nvidia/cuda:12.4.1-cudnn-devel-ubuntu22.04
 # Install system dependencies for Python and JupyterLab
@@ -39,15 +39,6 @@ RUN pip install sentence_transformers exllama datasets stable-baselines3 stable-
 RUN python -m ipykernel install --user --name sb3 --display-name "Python (sb3)" \
     && mkdir -p /home/suber/.jupyter \
     && echo "c.ServerApp.default_kernel_name = 'sb3'" >> /home/suber/.jupyter/jupyter_notebook_config.py
-
-#RUN  recommenders \
-#    && python -m ipykernel install --user --name sb3 --display-name "Python (sb3)" \
-#    && mkdir -p /home/suber/.jupyter \
-#    && echo "c.ServerApp.default_kernel_name = 'sb3'" >> /home/suber/.jupyter/jupyter_notebook_config.py
-
-
-# Set the default working directory for Jupyter and the NRMS code
-WORKDIR /app
 
 # Expose the JupyterLab port
 EXPOSE 8889
