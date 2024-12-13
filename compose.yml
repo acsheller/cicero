@@ -20,14 +20,17 @@ services:
       - /home/asheller/ollama_models:/root/.ollama
     stdin_open: true
     tty: true
-    
-  open-webui:
-    build:
-      context: .
-      dockerfile: Dockerfile.owui
-    container_name: open-webui-container
+
+
+  openwebui:
+    image: ghcr.io/open-webui/open-webui:main
+    container_name: open-webui
     runtime: nvidia  # GPU support
     environment:
+      - OLLAMA_BASE_URL=http://ollama:11434
+      - WEBUI_AUTH=False
+      - DATA_DIR=/app/backend/data
+      - DEFAULT_MODELS=llama3.2    
       - NVIDIA_VISIBLE_DEVICES=all
       - NVIDIA_DRIVER_CAPABILITIES=compute,utility
     networks:
@@ -35,7 +38,8 @@ services:
     ports:
       - "8080:8080"
     volumes:
-      - ./openwebui-data:/app/backend # Persist open-webui data
+      - ./openwebui-data/data:/app/backend/data # Persist open-webui data
+    restart: always
     stdin_open: true
     tty: true
 
