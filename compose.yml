@@ -17,7 +17,7 @@ services:
     ports:
       - "11434:11434"
     volumes:
-      - /home/asheller/ollama_models:/root/.ollama
+      - ./ollama_models:/root/.ollama
     stdin_open: true
     tty: true
 
@@ -71,6 +71,7 @@ services:
       - cicero
     volumes:
       - ./SUBERX:/app/SUBERX  # Mount SUBERX directory to the container
+      - ./datasets:/app/datasets
     ports:
       - "8889:8889"  # Expose JupyterLab port for suber
     stdin_open: true  # Keep STDIN open
@@ -97,7 +98,7 @@ services:
       - NVIDIA_DRIVER_CAPABILITIES=compute,utility
     volumes:
       - ./nrms:/app/nrms  # Mount your local nrms folder to the container
-      - ./nrms_data:/app/nrms_data  # Mount directory for data persistence
+      - ./datasets:/app/datasets  # Mount directory for data persistence
     ports:
       - "8888:8888"  # Expose JupyterLab port
     stdin_open: true  # Keep STDIN open
