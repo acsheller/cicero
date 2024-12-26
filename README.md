@@ -1,6 +1,6 @@
 # OWUI (Open Web UI)
 
-This container composition  is comporised of [https://ollama.com/](Ollama), [Open WebUI](https://github.com/open-webui/open-webui), [Fabric](https://github.com/danielmiessler/fabric), content from the [Recommenders team](https://github.com/recommenders-team/recommenders/tree/main), and [SUBER](https://github.com/SUBER-Team/SUBER).  
+This is a Docker Compose project comporised of [https://ollama.com/](Ollama), [Open WebUI](https://github.com/open-webui/open-webui), [Fabric](https://github.com/danielmiessler/fabric), content from the [Recommenders team](https://github.com/recommenders-team/recommenders/tree/main), and [SUBER](https://github.com/SUBER-Team/SUBER).  
 
 The theme is advancements in recommenders which is covered very well by the recommenders team.  SUBER combines large language models (LLMs) and reinforcement learning to provide recommenders.  
 
@@ -8,80 +8,81 @@ This specific work advanced SUBER with optimal LLM tooling, containerization, an
 
 ## Getting Started
 
-Make a directory to hold the models called `~/ollama_models`. Models will be pulled from Ollama and stored here for use by the system.
+Clone the [cicero](https://github.com/acsheller/cicero) Repo. Review the `compose.yml` file as there is a section for `Ollama`, `Open WebUI`, `Fabric`, `suber`, `nrms`, and `pyai`.
 
-Clone the [cicero]() Repo.  Currently, most work is done in [cicero/owui](../owui/) but clone the whole thing for now. Both `Fabric` and `Open WebUI` have there own docker files that can be built when executing `docker-compose up`. `Ollama` uses the `ollama container` so arguments are just added.  Please review the docker  and the docker-compose - `compose.yml`.
+Make a folder to hold the models called `./ollama_models`. Models will be pulled from Ollama and stored here for use by the system. Do not check this into git as the models can be very large.
 
-Please pay close attention to the environment variables set in the [docker file for Open WebUI](./Dockerfile.owui).  Cross reference with what is currently set with what you want and what is listed on the [env-configuraiton page for Open WebUI](https://docs.openwebui.com/getting-started/env-configuration/).
+Make another folder called `./datasets` and follow the [datasets procedures](./docs/Datasets.md) in the documentation. Note that datasets can be very large for the MIND dataset.  the NRMS Jupyter notebook - isolated in its onwn container will use this folder also.  Review the nrms notebook. 
 
+For a time-saver create some aliases like this, place them in your `.bashrc` and source it.
 
 ```.bash
 
-    git clone https://github.com/acsheller/cicero
-
-    # Build and bring up all containers.
-
-    docker-compuse up --build -d
-
-
+alias dc='docker-compose'
+alias dcup='docker-compose up --build -d'
 
 ```
 
-After its up go to http://localhost:8080 for the Open WebUI interface.  Ollama is available on http://localhost:11434.
-Both these are preconfigured with settings that are in the `openwebui-data` folder and the `fabric-config` folder.
-Remember that models are stored in `~/ollama-models`  -- this can change.  
+After sourcing your `.bashrc` or opening a new terminal type dcup in the cicero folder. 
 
-When the system comes up, if all of these are empty configure them as needed.  
+```.bash
+
+asheller: cicero$ dcup
+Creating network "cicero_cicero" with driver "bridge"
+Creating network "cicero_default" with the default driver
+Building fabric
+....
+....
+
+
+Creating nrms-container   ... done
+Creating suber-container  ... done
+Creating fabric-container ... done
+Creating open-webui       ... done
+Creating ollama           ... done
+Creating pyai-container   ... done
+asheller: cicero$
+
+```
+
+
+## Accessing the Services
+
+- [Ollama - http://localhost:11434/](http://localhost:11434/)
+- [Open WebUI - http://localhost:8080/](http://localhost:8080/)
+- [NRMS- http://localhost:8888/lab/tree/nrms.ipynb](http://localhost:8888/lab/tree/nrms.ipynb)
+- [SUBERX - http://localhost:8889/lab/tree/SUBERX/jupyter](http://localhost:8889/lab/tree/SUBERX/jupyter)
+- [Pydantic AI - http://localhost:8890/lab/tree/jupyter](http://localhost:8890/lab/tree/jupyter)
+
+
+## What is all this stuff?
+
+I kept adding containers to help work on the problem. I'll discuss them in order of current usefullness to the project.
+
+### Ollama
+
+`Ollama` is a very good way of serving up models that services like `Open WebUI` can take advantage of. Fortunately, there is an "official" ollama container that makes it surprisingly easy to work with.  Review the `Ollama` section in the [compose.yml](./compose.yml) file and be sure you understand it.  There's not much to configure.
+
+### Open WebUI
+
+`Open WebUI` was a little harder to setup. But there is an official container for it.  I added an `openwebui-data` folder to the project so that it could save its configuration locally.  That way on each shutdown-startup it doesn't come back blank.  Some configuration is necessary so be sure to review the [Open WebUI documentation](https://docs.openwebui.com/) and the settings in the [compose.yml](./compose.yml) file and gain some understanding.  Note the environment variables section -- e.g: `OLLAMA_BASE_URL=http://ollama:11434` -- and how this makes it very simple to configure Open WebUI to use the `Ollama` that was started.
+
+### SUBERX
+
+`SUBERX` is the primary focus of the overall project.  There are a few notebooks to work with. What is special about this, is that PyTorch and Tensorflow are both installed and work in the one container.  Stable Baselines 3 and Recommenders is also installed.  This was precarious and fortunately it is in container format for repatability.
+
+### NRMS
+
+`NRMS`, this was the original notebook from the 2021 MIND news recommenders contest.  I needed to update it because it no longer could pull the datasets, other than the demo dataset.  It also abstracted out the a few key steps for using a real dataset that still needs to be addressed.
+
+### PYAI (Pydantic AI)
+
+I added this one recently bacause it is a very efficient way to use LLMs in contrast to how it was done in SUBER, in my opinion.  I'm still working with it. 
 
 
 ## Stopping things
 
 ```
-docker-compose down
+docker-compose down or dc down if you set dc to be an alias for docker-compose
 
 ```
-
-## Exec-ing into the fabric container
-
-While developing the fabric REST API it was necessary to `docker exec` into it. 
-
-```.bash
-
-asheller: owui$ docker exec -it fabric-container /bin/bash
-fab_user@b0afe54a6854:~$ 
-
-```
-
-## Fabric Container 
-
-Currently launching it by hand as development of the rest-api is happening. One can start the rest API by:
-
-```.bash
-
-fab_user@b0afe54a6854:~$ python3 fabric_rest_svc.py 
- * Serving Flask app 'fabric_rest_svc'
- * Debug mode: off
-WARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.
- * Running on all addresses (0.0.0.0)
- * Running on http://127.0.0.1:8000
- * Running on http://172.18.0.4:8000
-Press CTRL+C to quit
-172.18.0.1 - - [07/Nov/2024 22:08:31] "GET / HTTP/1.1" 200 -
-172.18.0.1 - - [07/Nov/2024 22:08:32] "GET /favicon.ico HTTP/1.1" 404 -
-172.18.0.1 - - [07/Nov/2024 22:08:37] "GET /html HTTP/1.1" 200 -
-
-```
-
-`Patterns` are engineered prompts intended to do a certain action that a human might be interested in such as summarization, or extract_wisdom.  I'm a novice at this but it is very appealing because they are written in markdown.  The REST interface is custom for now and is specific to the needs of:
-
-1. Generating synthetic users that can be used in SUBER.
-2. Generating the rating or a recommend/not recommend value given a description of a user and a news article. 
-
-If one is inside the fabric container they can play around with it like this:
-
-```.bash
-
-"Generate 100 Synthetic Users with an American background" |fabric -p generate_synthetic_news_user
-
-```
-

@@ -12,7 +12,7 @@ import ast
 #base_path_small = os.path.expanduser('~/efs/resources/datasets/mind_small_recsys_splits/')
 
 ## This is a temporary dataset path.  TODO Implement config file with this in it.
-base_path_small = os.path.expanduser('/app/SUBERX/datasets/MINDsmall/')
+base_path_small = os.path.expanduser('/app/datasets/MINDsmall/')
 train_path_small = os.path.join(base_path_small, 'train')
 dev_path_small = os.path.join(base_path_small, 'validation_dev')
 test_path_small = os.path.join(base_path_small, 'test')

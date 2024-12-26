@@ -117,6 +117,7 @@ services:
       - cicero
     volumes:
       - ./pyai:/app/jupyter  # Mount SUBERX directory to the container
+      - ./datasets:/app/datasets
     ports:
       - "8890:8890"  # Expose JupyterLab port for suber
     stdin_open: true  # Keep STDIN open

@@ -11,12 +11,14 @@ I initally thought about this in terms of `concepts` but features is a good word
 
 I had very little trouble setting this up, but I did want to get it so it used my GPU and ran in docker (docker compose).  So I built a costom docker-compose with Ollama included.  The Open WebUI lets me specify the model I want and it will pull it down through Olloma and setu it up. 
 
-###
+### Specifics for this project
+
+Some of the functionality that I am specifically interested in is how Open WebUI can help with in one case defining the funcitonality for creating synthetic users.  
 
 
 
-##Reference:
-
+## Reference:
+t
 1. Designing an Open-Source LLM Interface and Social Platforms for Collectively Driven LLM Evaluation and Auditing. Available at: https://openwebui.com/assets/files/whitepaper.pdf
 
 2. 

@@ -77,7 +77,3 @@ cicero/
 └── README.md                          # Instructions for the project
 
 ```
-
-
-1. do somethign
-2. doo something else
