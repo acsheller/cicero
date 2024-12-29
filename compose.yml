@@ -43,21 +43,6 @@ services:
     stdin_open: true
     tty: true
 
-
-  fabric:
-    build:
-      context: .
-      dockerfile: Dockerfile.fabric
-    container_name: fabric-container
-    networks:
-      - cicero
-    volumes:
-      - ./fabric-config:/home/fab_user/.config/fabric
-    ports:
-      - "8000:8000"
-    stdin_open: true
-    tty: true
-
   suber:
     build:
       context: .
