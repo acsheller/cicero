@@ -56,10 +56,15 @@ class ThirdPersonDescriptive09_OurSys(LLMRater):
         return rating + 1
 
     def adjust_text_in(self, text, do_rename=True):
-        text = re.sub("\d+", lambda x: f"{int(x.group())-1}", text)
-        if do_rename:
-            text = text.replace("Alex", "Michael")
-            text = text.replace("Nicholas", "Michael")
+        try:
+            orig_text = text
+            text = re.sub("\d+", lambda x: f"{int(x.group())-1}", text)
+            if do_rename:
+                text = text.replace("Alex", "Michael")
+                text = text.replace("Nicholas", "Michael")
+            
+        except Exception as e:
+            print(f"Erroring on text {text} orig_text is {orig_text}")
         return text
 
     def _get_prompt(
@@ -117,8 +122,11 @@ class ThirdPersonDescriptive09_OurSys(LLMRater):
             print("error")
         name = user.name.split(" ")[0]
         # NOTE: this is a hack to make sure that the name is not the same as the 2 possible names used in the few-shot prompts
-        name = self.adjust_text_in(name, do_rename)
-
+        
+        try:
+            name = self.adjust_text_in(name, do_rename)
+        except Exception as e:
+            print(f"name is {name}")
         prompt = (
             f"{name} is a {user.age} years old {gender},"
             f" {pronoun} is {self.adjust_text_in(user.description, do_rename)}\n"

@@ -228,6 +228,28 @@ def get_reward_perturbator(name, seed):
 
 
 def get_user_dataset(name):
+
+    '''
+    Method that retries the synthetic users 
+
+    This is the modified version that uses the new  synthetic users.
+    '''
+    base_dir = os.path.join(
+        os.path.dirname(__file__),
+        "/app/datasets/",
+    )
+    if name  == "mind":
+        return UsersCSVLoader("synthetic_analysts",base_dir)
+    else:
+        raise ValueError(f"Unknown user dataset {name}")
+
+
+
+def get_user_dataset_original(name):
+
+    '''
+    Method that retries the synthetic users. This is the original method.
+    '''
     base_dir = os.path.join(
         os.path.dirname(__file__),
         "./users_generation/datasets/",

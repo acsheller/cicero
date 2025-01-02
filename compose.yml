@@ -8,7 +8,7 @@ services:
   ollama:
     image: ollama/ollama
     container_name: ollama
-    runtime: nvidia  # GPU support
+    runtime: nvidia
     environment:
       - NVIDIA_VISIBLE_DEVICES=all
       - NVIDIA_DRIVER_CAPABILITIES=compute,utility
@@ -21,16 +21,15 @@ services:
     stdin_open: true
     tty: true
 
-
   openwebui:
     image: ghcr.io/open-webui/open-webui:main
     container_name: open-webui
-    runtime: nvidia  # GPU support
+    runtime: nvidia
     environment:
       - OLLAMA_BASE_URL=http://ollama:11434
       - WEBUI_AUTH=False
       - DATA_DIR=/app/backend/data
-      - DEFAULT_MODELS=llama3.2    
+      - DEFAULT_MODELS=llama3.2
       - NVIDIA_VISIBLE_DEVICES=all
       - NVIDIA_DRIVER_CAPABILITIES=compute,utility
     networks:
@@ -38,7 +37,7 @@ services:
     ports:
       - "8080:8080"
     volumes:
-      - ./openwebui-data/data:/app/backend/data # Persist open-webui data
+      - ./openwebui-data/data:/app/backend/data
     restart: always
     stdin_open: true
     tty: true
@@ -48,20 +47,20 @@ services:
       context: .
       dockerfile: Dockerfile.suber
     container_name: suber-container
-    runtime: nvidia  # GPU support
+    runtime: nvidia
     environment:
       - NVIDIA_VISIBLE_DEVICES=all
       - NVIDIA_DRIVER_CAPABILITIES=compute,utility
     networks:
       - cicero
     volumes:
-      - ./SUBERX:/app/SUBERX  # Mount SUBERX directory to the container
+      - ./SUBERX:/app/SUBERX
       - ./datasets:/app/datasets
     ports:
-      - "8889:8889"  # Expose JupyterLab port for suber
-    stdin_open: true  # Keep STDIN open
-    tty: true  # Allocate a pseudo-TTY
-    ipc: host  # Equivalent to --ipc=host
+      - "8889:8889"
+    stdin_open: true
+    tty: true
+    ipc: host
     ulimits:
       memlock:
         soft: -1
@@ -70,44 +69,75 @@ services:
         soft: 67108864
         hard: 67108864
 
-
-
   nrms:
     build:
       context: .
       dockerfile: Dockerfile.nrms
     container_name: nrms-container
-    runtime: nvidia  # For GPU support
-    environment:
-      - NVIDIA_VISIBLE_DEVICES=all
-      - NVIDIA_DRIVER_CAPABILITIES=compute,utility
-    volumes:
-      - ./nrms:/app/nrms  # Mount your local nrms folder to the container
-      - ./datasets:/app/datasets  # Mount directory for data persistence
-    ports:
-      - "8888:8888"  # Expose JupyterLab port
-    stdin_open: true  # Keep STDIN open
-    tty: true  # Allocate a pseudo-TTY
-
-  pyai:
-    build:
-      context: .
-      dockerfile: Dockerfile.pyai
-    container_name: pyai-container
-    runtime: nvidia  # GPU support
+    runtime: nvidia
     environment:
       - NVIDIA_VISIBLE_DEVICES=all
       - NVIDIA_DRIVER_CAPABILITIES=compute,utility
     networks:
       - cicero
     volumes:
-      - ./pyai:/app/jupyter  # Mount SUBERX directory to the container
+      - ./nrms:/app/nrms
       - ./datasets:/app/datasets
     ports:
-      - "8890:8890"  # Expose JupyterLab port for suber
-    stdin_open: true  # Keep STDIN open
-    tty: true  # Allocate a pseudo-TTY
-    ipc: host  # Equivalent to --ipc=host
+      - "8888:8888"
+    stdin_open: true
+    tty: true
+
+  pyai:
+    build:
+      context: .
+      dockerfile: Dockerfile.pyai
+    container_name: pyai-container
+    runtime: nvidia
+    environment:
+      - NVIDIA_VISIBLE_DEVICES=all
+      - NVIDIA_DRIVER_CAPABILITIES=compute,utility
+    networks:
+      - cicero
+    volumes:
+      - ./pyai:/app/jupyter
+      - ./datasets:/app/datasets
+    ports:
+      - "8890:8890"
+    stdin_open: true
+    tty: true
+    ipc: host
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+      stack:
+        soft: 67108864
+        hard: 67108864
+
+  gnuradio:
+    build:
+      context: .
+      dockerfile: Dockerfile.gnuradio
+    container_name: gnuradio-novnc
+    privileged: true
+    runtime: nvidia
+    environment:
+      - NVIDIA_VISIBLE_DEVICES=all
+      - NVIDIA_DRIVER_CAPABILITIES=compute,utility
+      - UDEV=1 # To ensure udev works inside the container
+    networks:
+      - cicero
+    volumes:
+      - ~/cicero/novnc/home/guser:/home/guser
+      - ~/cicero/gnuradio:/app
+    devices:
+      - /dev/bus/usb:/dev/bus/usb  # Pass USB devices
+    ports:
+      - "8090:8080"
+    stdin_open: true
+    tty: true
+    ipc: host
     ulimits:
       memlock:
         soft: -1
