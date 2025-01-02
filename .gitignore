@@ -184,3 +184,5 @@ ollama_models/*
 glove*
 
 SUBERX/models/*
+
+novnc/home/guser/*
