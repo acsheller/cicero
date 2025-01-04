@@ -69,25 +69,6 @@ services:
         soft: 67108864
         hard: 67108864
 
-  nrms:
-    build:
-      context: .
-      dockerfile: Dockerfile.nrms
-    container_name: nrms-container
-    runtime: nvidia
-    environment:
-      - NVIDIA_VISIBLE_DEVICES=all
-      - NVIDIA_DRIVER_CAPABILITIES=compute,utility
-    networks:
-      - cicero
-    volumes:
-      - ./nrms:/app/nrms
-      - ./datasets:/app/datasets
-    ports:
-      - "8888:8888"
-    stdin_open: true
-    tty: true
-
   pyai:
     build:
       context: .
