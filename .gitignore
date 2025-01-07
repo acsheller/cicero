@@ -9,6 +9,11 @@ __pycache__/
 *.db
 *.txt
 *.pkl
+*.tsv
+*.csv
+*.npy
+*.vec
+*.zip
 
 openwebui-data/**
 !openwebui-data/.gitkeep
@@ -173,16 +178,21 @@ cython_debug/
 owui/openwebui-data/
 openwebui-data/data/webui.db
 
-datasets/*
 
 SUBERX/jupyter/entity_mapping.csv
 
 *Trash*
 
-ollama_models/*
-
+ollama_models/models/blobs/*
+ollama_models/models/manifests/*
+ollama_models/id_ed25519
+ollama_models/id_ed25519.pub
 glove*
 
 SUBERX/models/*
 
 novnc/home/guser/*
+
+model/
+
+nltk_data/
