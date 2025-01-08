@@ -1,18 +1,17 @@
-# OWUI (Open Web UI)
+# CICERO -- 
 
-This is a Docker Compose project comporised of [https://ollama.com/](Ollama), [Open WebUI](https://github.com/open-webui/open-webui), [Fabric](https://github.com/danielmiessler/fabric), content from the [Recommenders team](https://github.com/recommenders-team/recommenders/tree/main), and [SUBER](https://github.com/SUBER-Team/SUBER).  
+This is a Docker Compose project comporised of [https://ollama.com/](Ollama), [Open WebUI](https://github.com/open-webui/open-webui), , content from the [Recommenders team](https://github.com/recommenders-team/recommenders/tree/main), [Pydantic AI](https://ai.pydantic.dev/), and [SUBER](https://github.com/SUBER-Team/SUBER).  
 
-The theme is advancements in recommenders which is covered very well by the recommenders team.  SUBER combines large language models (LLMs) and reinforcement learning to provide recommenders.  
-
-This specific work advanced SUBER with optimal LLM tooling, containerization, and prompt engineering using Open Source products mentioned.
+The theme is advancements in recommenders which is covered very well by the recommenders team.  SUBER combines large language models (LLMs) and reinforcement learning to train recommendations in sparse environments where labeled data is limited.  This work expands on that with some modifications.
 
 ## Getting Started
 
 Clone the [cicero](https://github.com/acsheller/cicero) Repo. Review the `compose.yml` file as there is a section for `Ollama`, `Open WebUI`, `Fabric`, `suber`, `nrms`, and `pyai`.
 
-Make a folder to hold the models called `./ollama_models`. Models will be pulled from Ollama and stored here for use by the system. Do not check this into git as the models can be very large.
+Setup 
 
-Make another folder called `./datasets` and follow the [datasets procedures](./docs/Datasets.md) in the documentation. Note that datasets can be very large for the MIND dataset.  the NRMS Jupyter notebook - isolated in its onwn container will use this folder also.  Review the nrms notebook. 
+Get the MIND datasets and set it up as described in the [datasets documentation for Cicero](/datasets/README.md).
+
 
 For a time-saver create some aliases like this, place them in your `.bashrc` and source it.
 
@@ -29,35 +28,45 @@ After sourcing your `.bashrc` or opening a new terminal type dcup in the cicero 
 
 asheller: cicero$ dcup
 Creating network "cicero_cicero" with driver "bridge"
-Creating network "cicero_default" with the default driver
-Building fabric
-....
+Building suber
+[+] Building 0.5s (15/15) FINISHED                                                                       docker:default
+ => [internal] load build definition from Dockerfile.suber                                                         0.0s
+ => => transferring dockerfile: 2.17kB                                                                             0.0s
 ....
 
 
-Creating nrms-container   ... done
-Creating suber-container  ... done
-Creating fabric-container ... done
-Creating open-webui       ... done
-Creating ollama           ... done
-Creating pyai-container   ... done
+ => => writing image sha256:3720d94741cfb90951cf655213d755cba5041c69af7a76eb106698db42f4dc80                       0.0s
+ => => naming to docker.io/library/cicero_gnuradio                                                                 0.0s
+Creating pyai-container  ... done
+Creating ollama          ... done
+Creating open-webui      ... done
+Creating suber-container ... done
 asheller: cicero$
 
 ```
 
+## Now I'm up, Now What? 
 
-## Accessing the Services
+An LLM will need to be loaded
+
+These services are available to you now:
 
 - [Ollama - http://localhost:11434/](http://localhost:11434/)
 - [Open WebUI - http://localhost:8080/](http://localhost:8080/)
-- [NRMS- http://localhost:8888/lab/tree/nrms.ipynb](http://localhost:8888/lab/tree/nrms.ipynb)
 - [SUBERX - http://localhost:8889/lab/tree/SUBERX/jupyter](http://localhost:8889/lab/tree/SUBERX/jupyter)
 - [Pydantic AI - http://localhost:8890/lab/tree/jupyter](http://localhost:8890/lab/tree/jupyter)
 
+Except there are no LLMS loaded.  Review the models at [Ollama Models](https://ollama.com/search).  Note the ones marked `tools`.  Also note the specifications in terms of parameters and consider how much GPU memory is available as a resource.  For example, with one 12GB GPU, a 3b parameter model, such as [`llama3.2`](https://ollama.com/library/llama3.2) will fit into 12GB of GPU memory. Also [`mistral:7b`], with 7 billion parameters will fit into the GPU memory as well.
 
-## What is all this stuff?
+Go to your [Open WebUI service](http://localhost:8080/), the container is configured to automatically log the user in and is almost ready to go except for a model being loaded. 
 
-I kept adding containers to help work on the problem. I'll discuss them in order of current usefullness to the project.
+- Select the User Icon in upper-right corner of page.
+- Select Admin Panel [link for you to localhost version](http://localhost:8080/admin/users.)
+- Select Settings [link for you to settings localhost](http://localhost:8080/admin/settings) near the top, towards the center.
+- Select `Connections` from the available options.
+- You should see the Ollama API Connections for the [localhost Ollama](http://localhost:11434/), select the wrenh to the far right.
+- In the `Pull a model from Ollama.com` type in the model you would like to pull down.  `llama3.2`, and/or `minstral:7b` are good options for the hobbiest GPU.
+- Click on `models  to see the models you've downloaded. 
 
 ### Ollama
 
