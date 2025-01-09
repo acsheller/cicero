@@ -32,11 +32,12 @@ ENV TORCH_CUDA_ARCH_LIST='6.0;6.1;7.0;7.2;7.5;8.0;8.6+PTX;8.9;9.0'
 ENV TF_CPP_MIN_LOG_LEVEL=3
 
 # Upgrade pip and install dependencies, create kernel, and set default kernel
-RUN pip install --upgrade pip setuptools wheel ipykernel ipywidgets jupyterlab tqdm swifter swifter[jupyter] swifter[groupby]
-RUN pip install tensorflow[and-cuda]==2.15.1
-RUN pip install torch==2.4.1 torchvision==0.19.1 torchaudio==2.4.1 --index-url https://download.pytorch.org/whl/cu118
-RUN pip install sentence_transformers exllama datasets stable-baselines3 stable-baselines3[extra] recommenders SPARQLWrapper
-RUN python -m ipykernel install --user --name sb3 --display-name "Python (sb3)" \
+RUN pip install --upgrade pip setuptools wheel ipykernel ipywidgets jupyterlab tqdm swifter swifter[jupyter] swifter[groupby] pydantic-ai \
+    && pip install 'pydantic-ai-slim[openai]' modin[all] \
+    && pip install tensorflow[and-cuda]==2.15.1 \
+    && pip install torch==2.4.1 torchvision==0.19.1 torchaudio==2.4.1 --index-url https://download.pytorch.org/whl/cu118 \
+    && pip install sentence_transformers exllama datasets stable-baselines3 stable-baselines3[extra] recommenders SPARQLWrapper \
+    && python -m ipykernel install --user --name sb3 --display-name "Python (sb3)" \
     && mkdir -p /home/suber/.jupyter \
     && echo "c.ServerApp.default_kernel_name = 'sb3'" >> /home/suber/.jupyter/jupyter_notebook_config.py
 
