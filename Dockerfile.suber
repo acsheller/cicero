@@ -3,7 +3,7 @@ FROM nvidia/cuda:12.6.2-cudnn-devel-ubuntu22.04
 #FROM nvidia/cuda:12.4.1-cudnn-devel-ubuntu22.04
 # Install system dependencies for Python and JupyterLab
 RUN apt-get update && apt-get install -y \
-    python3 python3-pip python3-venv python-is-python3 build-essential libopenblas-dev libatlas-base-dev gcc g++ \
+    python3 python3-pip python3-venv python-is-python3 build-essential libopenblas-dev libatlas-base-dev gcc g++ curl wget\
     && rm -rf /var/lib/apt/lists/*
 
 #RUN apt-get update && apt-get install -y nvidia-utils-535
@@ -32,7 +32,7 @@ ENV TORCH_CUDA_ARCH_LIST='6.0;6.1;7.0;7.2;7.5;8.0;8.6+PTX;8.9;9.0'
 ENV TF_CPP_MIN_LOG_LEVEL=3
 
 # Upgrade pip and install dependencies, create kernel, and set default kernel
-RUN pip install --upgrade pip setuptools wheel ipykernel curl ipywidgets jupyterlab tqdm swifter swifter[jupyter] swifter[groupby] pydantic-ai \
+RUN pip install --upgrade pip setuptools wheel ipykernel ipywidgets jupyterlab tqdm swifter swifter[jupyter] swifter[groupby] pydantic-ai \
     && pip install 'pydantic-ai-slim[openai]' modin[all] \
     && pip install tensorflow[and-cuda]==2.15.1 \
     && pip install torch==2.4.1 torchvision==0.19.1 torchaudio==2.4.1 --index-url https://download.pytorch.org/whl/cu118 \

@@ -7,7 +7,7 @@ class AnalystBehaviorSimulator:
     A class to simulate analyst behaviors interacting with news articles using an LLM.
     """
     
-    def __init__(self, agent,history_file,impressions_file,analysts_file,behaviors_file):
+    def __init__(self, agent,history_file,impressions_file,analysts_file,behaviors_file,news_file):
         """
         Initialize the simulator with an LLM agent and tracking for analysts.
 
@@ -23,10 +23,15 @@ class AnalystBehaviorSimulator:
         self.history_file = history_file
         self.impressions_file = impressions_file
         self.analyst_file = analysts_file
+        self.behaviors_file = behaviors_file
+        self.news_file = news_file
         self.history_df = self.load_or_create_file(self.history_file, ["uid", "history"])
         self.impressions_df = self.load_or_create_file(self.impressions_file, ["impression_id", "uid", "news_id", "clicked"])
-        self.analysts = self.load_or_create_file(self.analyst_file, ["uid", "name", "age", "gender", "primary_news_interest", 
-        "secondary_news_interest", "job", "description"])
+        self.analysts = self.load_or_create_file(self.analyst_file, ["name", "age", "gender", "primary_news_interest", "secondary_news_interest", "job", "description"])
+        self.behaviors = pd.read_csv(behaviors_file, sep="\t", header=None)
+        self.behaviors.columns = ["impression_id", "user_id", "time", "history", "impressions"]
+        self.news = pd.read_csv(news_file, sep="\t", header=None)
+        self.news.columns = ["news_id", "category", "subcategory", "title", "abstract", "url", "title_entities", "abstract_entities"]
 
 
     def load_or_create_file(self, file_path, columns=None):
@@ -43,7 +48,7 @@ class AnalystBehaviorSimulator:
         if os.path.exists(file_path):
             print(f"Loading file from {file_path}")
             df = pd.read_csv(file_path, sep="\t")
-            if columns:
+            if columns and len(df.columns) == 0:
                 df.columns = columns
             return df
             
@@ -118,10 +123,10 @@ if __name__ == '__main__':
 
     history_file = data_path + "history.tsv"
     impressions_file = data_path + "impressions.tsv"
-    behaviors_file  = data_path + "train/behavors.tsv"
+    behaviors_file  = data_path + "train/behaviors.tsv"
     analysts_file = data_path_base + "synthetic_analysts.csv"
+    news_file = data_path + "train/news.tsv"
 
-
-    simulator = AnalystBehaviorSimulator("AGENT",history_file=history_file,impressions_file=impressions_file,analysts_file=analysts_file,behaviors_file=behaviors_file)
+    simulator = AnalystBehaviorSimulator("AGENT",history_file=history_file,impressions_file=impressions_file,analysts_file=analysts_file,behaviors_file=behaviors_file,news_file=news_file)
 
     print(f"maybe complete")
