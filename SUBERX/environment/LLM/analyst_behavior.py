@@ -1,5 +1,6 @@
 import os
 import random
+import asyncio
 import pandas as pd
 
 # Imports for Pydantic AI
@@ -68,7 +69,10 @@ class AnalystBehaviorSimulator:
         self.behaviors.columns = ["impression_id", "user_id", "time", "history", "impressions"]
         self.news = pd.read_csv(news_file, sep="\t", header=None)
         self.news.columns = ["news_id", "category", "subcategory", "title", "abstract", "url", "title_entities", "abstract_entities"]
-        self.uid_to_names = self.load_or_create_file(uid_to_names,['uid','name'])
+        self.uid_to_names = pd.read_csv(uid_to_names,sep='\t')
+
+
+
         if len(self.uid_to_names) != len(self.analysts):
             # The file is empyt so
             num_analysts = len(self.analysts)
@@ -76,6 +80,8 @@ class AnalystBehaviorSimulator:
             zipped_data = list(zip(obfuscated_ids,self.analysts["name"]))
             self.uid_to_names = pd.DataFrame(zipped_data, columns=["uid", "name"])
             self.save_file(self.uid_to_names_file, self.uid_to_names)
+
+        self.uid_and_analysts = self.uid_to_names.merge(self.analysts, on="name", how="inner")
 
         self.history = self.load_or_create_file(self.history_file, ["uid", "history"])
         if len(self.history) != len(self.analysts):
@@ -85,7 +91,7 @@ class AnalystBehaviorSimulator:
         self.save_file(self.history_file,self.history)
 
         # Need to create a next impression ID to be used.abs
-        max_impresson_id = self.behaviors["impresssion_id"].max()
+        max_impression_id = self.behaviors["impression_id"].max()
         self.current_impression_id = max_impression_id + 1
 
 
@@ -191,14 +197,37 @@ class AnalystBehaviorSimulator:
             pd.DataFrame: A DataFrame with the selected news articles.
         """
         return self.news.sample(n=num_articles)
-       
-    async def behavior_as_the_analyst(self,analyst_uid, impression_id, history, article):
+
+    def __make_history(self,uid):
+        '''
+        Part of the behavior is the analyists previous history.
+        '''
+        history = self.history[self.history['uid'] == analyst_uid]
+        if len(history) == 0:
+            return_string = "No articles reviewed."
+        else:
+            for hs in history:
+                news_id,review =hs.split('-')
+                article = self.news[self.news['']]
+            return_string = ""
+        return return_string
+        # TODO Left Off Here
+
+
+    async def behavior_as_the_analyst(self,analyst_uid, impression_id, article):
         '''
   
         '''
         gender = {"F":'female',"M":'male'}
         
-        
+        # Get the analyst based on UID
+        analyst = self.uid_and_analysts[self.uid_and_analysts['uid'] == analyst_uid]
+
+        # Need to get the history of the user from the history dataframe.
+
+        history = self.__make_history(analyst_uid)
+
+
         # Build the prompt
         prompt = f"""
         You are {analyst['name']}, a {analyst['age']}-year-old {analyst['gender']} working as a {analyst['job']}.
@@ -206,7 +235,7 @@ class AnalystBehaviorSimulator:
 
         Session Details:
         - User ID: {analyst['uid']}
-        - Impression ID: {impression['impression_id']}
+        - Impression ID: {impression_id}
 
         You have previously interacted with the following articles:
         {', '.join(history)}
@@ -227,11 +256,6 @@ class AnalystBehaviorSimulator:
         #print(result.data if result else "No response.")
         return result
 
-    def __make_history(self,history):
-        '''
-        Part of the behavior is the analyists previous history.
-        '''
-        pass
 
 
 
@@ -275,43 +299,59 @@ class AnalystBehaviorSimulator:
         return result
 
 
-if __name__ == '__main__':
+async def main():
     MIND_type = "MINDsmall"
-    data_path_base="/home/asheller/cicero/datasets/"
+    data_path_base = "/home/asheller/cicero/datasets/"
     data_path = data_path_base + MIND_type + "/"
 
     history_file = data_path + "history.tsv"
     impressions_file = data_path + "impressions.tsv"
-    behaviors_file  = data_path + "train/behaviors.tsv"
+    behaviors_file = data_path + "train/behaviors.tsv"
     analysts_file = data_path_base + "synthetic_analysts.csv"
     news_file = data_path + "train/news.tsv"
     uid_to_names = data_path + "uid_to_name.tsv"
 
     # Create a behavior_simulator
-    behavior_simulator = AnalystBehaviorSimulator(history_file=history_file,impressions_file=impressions_file,analysts_file=analysts_file,behaviors_file=behaviors_file,news_file=news_file,uid_to_names=uid_to_names)
+    behavior_simulator = AnalystBehaviorSimulator(
+        history_file=history_file,
+        impressions_file=impressions_file,
+        analysts_file=analysts_file,
+        behaviors_file=behaviors_file,
+        news_file=news_file,
+        uid_to_names=uid_to_names
+    )
 
-    # Connect to Ollama because that is what we want to do
-    model_name="mistral:7b",  # Replace with your preferred model  Could be 'mistrel:7b', 'granite3.1-dense:latest', 'llama3.2', gemma2
-    base_url="http://localhost:11434/v1/"  # Ollama's default base URL
-    
+    # Connect to Ollama
+    model_name = "mistral:7b"  # Replace with your preferred model
+    base_url = "http://localhost:11434/v1/"  # Ollama's default base URL
+
     # Make a connection to the local Ollama Server
     behavior_simulator.connect_ollama(ollama_url=base_url, model_name=model_name)
+
     # Create an Agent after Ollama connection is established
     behavior_simulator.create_agent()
+
     # Now iterate through all the users twice
     for _ in range(len(behavior_simulator.uid_to_names) * 2):
         # 1. Get an analyst
         analyst_uid = behavior_simulator.pick_random_user()
-        #print(f"Selected user: {analyst_uid}")
-        # 2. Select the news articles for the analyst to  review
-        session_articles = behavior_simulator.pick_random_news(num_articles=random.choice([1,2,3,4,5]))
+
+        # 2. Select the news articles for the analyst to review
+        session_articles = behavior_simulator.pick_random_news(num_articles=random.choice([1, 2, 3, 4, 5]))
+
         # 3. Get the next impression ID
         impression_id = behavior_simulator.current_impression_id
-        # 4. Get the analyists behavior from the 
-        for article in session_articles:
-            self.behavior_as_the_analyst(analyst_uid, impression_id, history, article)
+
+        # 4. Get the analyst's behavior
+        for article in session_articles.to_dict(orient='records'):
+            result = await behavior_simulator.behavior_as_the_analyst(analyst_uid, impression_id, article)
+            print(f"Result for article {article['news_id']}: {result}")
+
+        break  # Remove this break in your final script
+
+    print("Maybe complete")
 
 
-        break
 
-    print(f"maybe complete")
+if __name__ == '__main__':
+    asyncio.run(main())
