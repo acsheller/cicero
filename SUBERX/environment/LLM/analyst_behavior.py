@@ -1,13 +1,46 @@
 import os
+import random
 import pandas as pd
 
+# Imports for Pydantic AI
+from pydantic import BaseModel, Field
+from pydantic_ai import Agent
+from pydantic_ai.models.ollama import OllamaModel
+from typing import Dict, Optional, List
+
+
+class AnalystBehavior(BaseModel):
+    """
+    This is the structure the LLM will return for behaviors.
+    """
+    impression_id: str = Field(description="A unique session identifier for this behavior entry.")
+    user_id: str = Field(description="The unique identifier of the analyst.")
+    time: str = Field(description="Timestamp of the session in MM/DD/YYYY HH:MM:SS AM/PM format.")
+    history: str = Field(description="A string of previously clicked article IDs, separated by spaces. Only add the newsID if the article was selected.")
+    impressions: str = Field(description=(
+        "A string of article IDs separated by spaces, where each ID is followed by '-1' if clicked "
+        "or '-0' if not clicked (e.g., 'N12345-1 N23456-0')."
+    ))
+
+    def __str__(self):
+        return (
+            f"AnalystBehavior:\n"
+            f"  Impression ID: {self.impression_id}\n"
+            f"  User ID: {self.user_id}\n"
+            f"  Time: {self.time}\n"
+            f"  History: {self.history}\n"
+            f"  Impressions: {self.impressions}\n"
+        )
+    
+    def __repr__(self):
+        return self.__str__()
 
 class AnalystBehaviorSimulator:
     """
     A class to simulate analyst behaviors interacting with news articles using an LLM.
     """
     
-    def __init__(self, agent,history_file,impressions_file,analysts_file,behaviors_file,news_file):
+    def __init__(self, history_file,impressions_file,analysts_file,behaviors_file,news_file,uid_to_names):
         """
         Initialize the simulator with an LLM agent and tracking for analysts.
 
@@ -18,20 +51,43 @@ class AnalystBehaviorSimulator:
             analyst_file: Path to the synthetic analysts file.
             behaviors_file: The behaviors file for this dataset.
         """
-        self.agent = agent
         self.analyst_data = {}  # Dictionary to store analyst-specific history and impressions
         self.history_file = history_file
         self.impressions_file = impressions_file
-        self.analyst_file = analysts_file
+        self.analysts_file = analysts_file
         self.behaviors_file = behaviors_file
         self.news_file = news_file
-        self.history_df = self.load_or_create_file(self.history_file, ["uid", "history"])
-        self.impressions_df = self.load_or_create_file(self.impressions_file, ["impression_id", "uid", "news_id", "clicked"])
-        self.analysts = self.load_or_create_file(self.analyst_file, ["name", "age", "gender", "primary_news_interest", "secondary_news_interest", "job", "description"])
+        self.uid_to_names_file = uid_to_names
+
+        self.impressions = self.load_or_create_file(self.impressions_file, ["impression_id", "uid", "news_id", "clicked"])
+        
+        self.analysts = pd.read_csv(self.analysts_file)
+        
+        
         self.behaviors = pd.read_csv(behaviors_file, sep="\t", header=None)
         self.behaviors.columns = ["impression_id", "user_id", "time", "history", "impressions"]
         self.news = pd.read_csv(news_file, sep="\t", header=None)
         self.news.columns = ["news_id", "category", "subcategory", "title", "abstract", "url", "title_entities", "abstract_entities"]
+        self.uid_to_names = self.load_or_create_file(uid_to_names,['uid','name'])
+        if len(self.uid_to_names) != len(self.analysts):
+            # The file is empyt so
+            num_analysts = len(self.analysts)
+            obfuscated_ids = [f"A{random.randint(1000, 9999)}" for _ in range(num_analysts)]
+            zipped_data = list(zip(obfuscated_ids,self.analysts["name"]))
+            self.uid_to_names = pd.DataFrame(zipped_data, columns=["uid", "name"])
+            self.save_file(self.uid_to_names_file, self.uid_to_names)
+
+        self.history = self.load_or_create_file(self.history_file, ["uid", "history"])
+        if len(self.history) != len(self.analysts):
+            self.history = pd.DataFrame({"uid": self.uid_to_names["uid"],  # Take UIDs from the merged DataFrame
+            "history": [[] for _ in range(len(self.uid_to_names))]  # Start with empty lists
+            })
+        self.save_file(self.history_file,self.history)
+
+        # Need to create a next impression ID to be used.abs
+        max_impresson_id = self.behaviors["impresssion_id"].max()
+        self.current_impression_id = max_impression_id + 1
+
 
 
     def load_or_create_file(self, file_path, columns=None):
@@ -47,7 +103,7 @@ class AnalystBehaviorSimulator:
         """
         if os.path.exists(file_path):
             print(f"Loading file from {file_path}")
-            df = pd.read_csv(file_path, sep="\t")
+            df = pd.read_csv(file_path, sep="\t",header=None)
             if columns and len(df.columns) == 0:
                 df.columns = columns
             return df
@@ -74,46 +130,149 @@ class AnalystBehaviorSimulator:
         df.to_csv(file_path, sep="\t", index=False)
         print(f"File saved to {file_path}")
 
-    def add_to_impressions(self, impression_id, user_id, news_id, clicked):
-        """
-        Add an impression to the impressions DataFrame.
+    def connect_ollama(self,ollama_url,model_name):
+        '''
+        This depends on an ollama server running serving-up models.
 
+        '''
+
+        self.ollama_model = OllamaModel(
+        model_name=model_name,  
+        base_url=ollama_url
+        )
+
+    def create_agent(self):
+        """
+        Creates the Pydantic AI Agent 
+
+        """
+        if self.ollama_model:
+            self.agent = Agent(model=self.ollama_model,result_type=AnalystBehavior,retries=5)
+
+
+    def pick_random_user(self):
+        """
+        Pick a random user from the uid_to_names DataFrame, 
+        ensuring all users are iterated through at least once.
+        
+        Returns:
+            str: The randomly selected user ID.
+        """
+        # Initialize the set to track selected UIDs if it doesn't exist
+        if not hasattr(self, "_selected_uids"):
+            self._selected_uids = set()
+
+        # Get all user IDs
+        all_uids = set(self.uid_to_names["uid"].tolist())
+
+        # Find the available UIDs that have not been selected yet
+        available_uids = all_uids - self._selected_uids
+
+        # If all users have been iterated, reset the set
+        if not available_uids:
+            print("All users have been iterated. Resetting.")
+            self._selected_uids.clear()
+            available_uids = all_uids
+
+        # Pick a random user from the available UIDs
+        selected_uid = random.choice(list(available_uids))
+        self._selected_uids.add(selected_uid)  # Track the selected UID
+        return selected_uid
+
+    def pick_random_news(self, num_articles=1):
+        """
+        Pick a specified number of random news articles from the news DataFrame.
+
+        Add code to monitor news articles are implement some selection scheme. 
+        
         Args:
-            impression_id (str): The unique ID for the impression.
-            user_id (str): The ID of the analyst.
-            news_id (str): The ID of the news article.
-            clicked (int): Whether the article was clicked (1 for clicked, 0 for not clicked).
+            num_articles (int): Number of news articles to select.
+        Returns:
+            pd.DataFrame: A DataFrame with the selected news articles.
         """
-        new_entry = {
-            "impression_id": impression_id,
-            "user_id": user_id,
-            "news_id": news_id,
-            "clicked": clicked
-        }
-        self.impressions_df = pd.concat([self.impressions_df, pd.DataFrame([new_entry])], ignore_index=True)
-        self.save_file(self.impressions_file, self.impressions_df)
+        return self.news.sample(n=num_articles)
+       
+    async def behavior_as_the_analyst(self,analyst_uid, impression_id, history, article):
+        '''
+  
+        '''
+        gender = {"F":'female',"M":'male'}
+        
+        
+        # Build the prompt
+        prompt = f"""
+        You are {analyst['name']}, a {analyst['age']}-year-old {analyst['gender']} working as a {analyst['job']}.
+        {analyst['description']}
 
-    def add_to_history(self, user_id, news_id):
+        Session Details:
+        - User ID: {analyst['uid']}
+        - Impression ID: {impression['impression_id']}
+
+        You have previously interacted with the following articles:
+        {', '.join(history)}
+
+        The news article is titled: '{impression['title']}'
+        - News ID: {impression['news_id']}
+
+        Would you click on this article? (Respond with 1 for clicked, 0 for not clicked)
+        Format this as string of article ID separated by aspace, where the ID is followed by '-1' if clicked "
+            "or '-0' if not clicked (e.g., 'N12345-1 N23456-0').
         """
-        Add a news article to the user's history.
+        
+        print(f"Prompt \n{prompt}")
+        # Query the LLM
+        result = None
+        #result = await agent.run(prompt)
+        #print("Acting as the Person Response:")
+        #print(result.data if result else "No response.")
+        return result
 
-        Args:
-            user_id (str): The ID of the analyst.
-            news_id (str): The ID of the news article.
+    def __make_history(self,history):
+        '''
+        Part of the behavior is the analyists previous history.
+        '''
+        pass
+
+
+
+    async def behavior_as_third_party(self, analyst, impression_id, history, article):
+        '''
+        Generate the behavior as an analyst one article at a time
+        '''
+        # Build the prompt
+        prompt = f"""
+        You are an expert judge of human character and news consumption behavior.
+
+        Session Details:
+        - User ID: {analyst['uid']}
+        - Impression ID: {impression['impression_id']}
+
+        Here is the user's profile:
+        - Name: {analyst['name']}
+        - Age: {analyst['age']}
+        - Gender: {analyst['gender']}
+        - Primary News Interest: {analyst['primary_news_interest']}
+        - Secondary News Interest: {analyst['secondary_news_interest']}
+        - Job: {analyst['job']}
+        - Description: {analyst['description']}
+
+        The user has previously interacted with the following articles:
+        {', '.join(history)}
+
+        Evaluate the following article:
+        - Title: '{impression['title']}'
+        - News ID: {impression['news_id']}
+
+        Would they click on this article? (Respond with 1 for clicked, 0 for not clicked)
+        What is your reasoning for clicking or not clicking on the article?
         """
-        # Check if the user already has a history entry
-        if user_id in self.history_df["user_id"].values:
-            # Append the new article to the existing history
-            current_history = self.history_df.loc[self.history_df["user_id"] == user_id, "history"].values[0]
-            updated_history = f"{current_history} {news_id}" if current_history else news_id
-            self.history_df.loc[self.history_df["user_id"] == user_id, "history"] = updated_history
-        else:
-            # Add a new entry for the user
-            new_entry = {"user_id": user_id, "history": news_id}
-            self.history_df = pd.concat([self.history_df, pd.DataFrame([new_entry])], ignore_index=True)
-
-        # Save the updated history
-        self.save_history()
+        print(f"Prompt \n{prompt}")
+        # Query the LLM
+        result = None
+        #result = await agent.run(prompt)
+        #print("Acting on Behalf of the Person Response:")
+        #print(result.data if result else "No response.")
+        return result
 
 
 if __name__ == '__main__':
@@ -126,7 +285,33 @@ if __name__ == '__main__':
     behaviors_file  = data_path + "train/behaviors.tsv"
     analysts_file = data_path_base + "synthetic_analysts.csv"
     news_file = data_path + "train/news.tsv"
+    uid_to_names = data_path + "uid_to_name.tsv"
 
-    simulator = AnalystBehaviorSimulator("AGENT",history_file=history_file,impressions_file=impressions_file,analysts_file=analysts_file,behaviors_file=behaviors_file,news_file=news_file)
+    # Create a behavior_simulator
+    behavior_simulator = AnalystBehaviorSimulator(history_file=history_file,impressions_file=impressions_file,analysts_file=analysts_file,behaviors_file=behaviors_file,news_file=news_file,uid_to_names=uid_to_names)
+
+    # Connect to Ollama because that is what we want to do
+    model_name="mistral:7b",  # Replace with your preferred model  Could be 'mistrel:7b', 'granite3.1-dense:latest', 'llama3.2', gemma2
+    base_url="http://localhost:11434/v1/"  # Ollama's default base URL
+    
+    # Make a connection to the local Ollama Server
+    behavior_simulator.connect_ollama(ollama_url=base_url, model_name=model_name)
+    # Create an Agent after Ollama connection is established
+    behavior_simulator.create_agent()
+    # Now iterate through all the users twice
+    for _ in range(len(behavior_simulator.uid_to_names) * 2):
+        # 1. Get an analyst
+        analyst_uid = behavior_simulator.pick_random_user()
+        #print(f"Selected user: {analyst_uid}")
+        # 2. Select the news articles for the analyst to  review
+        session_articles = behavior_simulator.pick_random_news(num_articles=random.choice([1,2,3,4,5]))
+        # 3. Get the next impression ID
+        impression_id = behavior_simulator.current_impression_id
+        # 4. Get the analyists behavior from the 
+        for article in session_articles:
+            self.behavior_as_the_analyst(analyst_uid, impression_id, history, article)
+
+
+        break
 
     print(f"maybe complete")

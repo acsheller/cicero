@@ -45,4 +45,4 @@ RUN pip install --upgrade pip setuptools wheel ipykernel ipywidgets jupyterlab t
 EXPOSE 8889
 
 # Start JupyterLab upon container startup
-CMD ["jupyter-lab", "--ip=0.0.0.0", "--port=8889", "--no-browser", "--allow-root", "--notebook-dir=/app", "--NotebookApp.token=''"]
+CMD ["jupyter-lab", "--ip=0.0.0.0", "--port=8889", "--no-browser", "--allow-root", "--notebook-dir=/app/SUBERX/jupyter", "--NotebookApp.token=''"]
