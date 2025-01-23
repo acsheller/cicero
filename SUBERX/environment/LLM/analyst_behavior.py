@@ -16,22 +16,16 @@ class AnalystBehavior(BaseModel):
     """
     impression_id: str = Field(description="A unique session identifier for this behavior entry.")
     user_id: str = Field(description="The unique identifier of the analyst.")
-    time: str = Field(description="Timestamp of the session in MM/DD/YYYY HH:MM:SS AM/PM format.")
-    history: str = Field(description="A string of previously clicked article IDs, separated by spaces. Only add the newsID if the article was selected.")
-    impressions: str = Field(description=(
-        "A string of article IDs separated by spaces, where each ID is followed by '-1' if clicked "
-        "or '-0' if not clicked (e.g., 'N12345-1 N23456-0')."
-    ))
+    news_id: str = Field(description="The unique identifier of the news article.")
+    clicked: str = Field(description="a 1 if clicked, a 0 if not clicked")
 
     def __str__(self):
         return (
             f"AnalystBehavior:\n"
-            f"  Impression ID: {self.impression_id}\n"
-            f"  User ID: {self.user_id}\n"
-            f"  Time: {self.time}\n"
-            f"  History: {self.history}\n"
-            f"  Impressions: {self.impressions}\n"
-        )
+            f" Impression ID: {self.impression_id}\n"
+            f" User ID: {self.user_id}\n"
+            f" News ID: {self.news_id}\n"
+            f" Clicked: {self.clicked}")
     
     def __repr__(self):
         return self.__str__()
@@ -70,8 +64,6 @@ class AnalystBehaviorSimulator:
         self.news = pd.read_csv(news_file, sep="\t", header=None)
         self.news.columns = ["news_id", "category", "subcategory", "title", "abstract", "url", "title_entities", "abstract_entities"]
         self.uid_to_names = pd.read_csv(uid_to_names,sep='\t')
-
-
 
         if len(self.uid_to_names) != len(self.analysts):
             # The file is empyt so
@@ -202,14 +194,16 @@ class AnalystBehaviorSimulator:
         '''
         Part of the behavior is the analyists previous history.
         '''
-        history = self.history[self.history['uid'] == analyst_uid]
+        history = list(self.history[self.history['uid'] == uid]['history'])[0]
+        print(f"length of history is {len(history)}")
         if len(history) == 0:
-            return_string = "No articles reviewed."
+            return_string = "You have reviewed no articles."
         else:
             for hs in history:
                 news_id,review =hs.split('-')
                 article = self.news[self.news['']]
-            return_string = ""
+            return_string = "You have previously interacted with the following articles:"
+
         return return_string
         # TODO Left Off Here
 
@@ -221,12 +215,11 @@ class AnalystBehaviorSimulator:
         gender = {"F":'female',"M":'male'}
         
         # Get the analyst based on UID
-        analyst = self.uid_and_analysts[self.uid_and_analysts['uid'] == analyst_uid]
+        analyst = self.uid_and_analysts[self.uid_and_analysts['uid'] == analyst_uid].to_dict(orient='records')[0]
 
         # Need to get the history of the user from the history dataframe.
 
-        history = self.__make_history(analyst_uid)
-
+        # history = self.__make_history(analyst_uid)
 
         # Build the prompt
         prompt = f"""
@@ -236,25 +229,19 @@ class AnalystBehaviorSimulator:
         Session Details:
         - User ID: {analyst['uid']}
         - Impression ID: {impression_id}
-
-        You have previously interacted with the following articles:
-        {', '.join(history)}
-
-        The news article is titled: '{impression['title']}'
-        - News ID: {impression['news_id']}
+        - News ID: {article['news_id']}
+        The news article is titled: '{article['title']}'
 
         Would you click on this article? (Respond with 1 for clicked, 0 for not clicked)
-        Format this as string of article ID separated by aspace, where the ID is followed by '-1' if clicked "
-            "or '-0' if not clicked (e.g., 'N12345-1 N23456-0').
         """
         
         print(f"Prompt \n{prompt}")
         # Query the LLM
         result = None
-        #result = await agent.run(prompt)
-        #print("Acting as the Person Response:")
-        #print(result.data if result else "No response.")
-        return result
+        result = await self.agent.run(prompt)
+        print("Acting as the Person Response:")
+        print(result.data if result else "No response.")
+        return result.data
 
 
 
@@ -322,7 +309,9 @@ async def main():
     )
 
     # Connect to Ollama
-    model_name = "mistral:7b"  # Replace with your preferred model
+    #model_name = "mistral:7b"  # Replace with your preferred model
+    model_name = "llama3.2"  # Replace with your preferred model
+
     base_url = "http://localhost:11434/v1/"  # Ollama's default base URL
 
     # Make a connection to the local Ollama Server
@@ -332,6 +321,7 @@ async def main():
     behavior_simulator.create_agent()
 
     # Now iterate through all the users twice
+    behaviors = {}
     for _ in range(len(behavior_simulator.uid_to_names) * 2):
         # 1. Get an analyst
         analyst_uid = behavior_simulator.pick_random_user()
@@ -343,10 +333,17 @@ async def main():
         impression_id = behavior_simulator.current_impression_id
 
         # 4. Get the analyst's behavior
+        impressions_this_session = []
         for article in session_articles.to_dict(orient='records'):
             result = await behavior_simulator.behavior_as_the_analyst(analyst_uid, impression_id, article)
             print(f"Result for article {article['news_id']}: {result}")
-
+            item = result.news_id + '-' + result.clicked
+            if  int(result.clicked):
+                behavior_simulator.history[analyst_uid].append(result.news_id)
+            impressions_this_session.append(item)
+            # Now create the behavior because we have everything we need.
+        ## TODO left off here.
+        
         break  # Remove this break in your final script
 
     print("Maybe complete")
