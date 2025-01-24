@@ -8,6 +8,11 @@ from pydantic import BaseModel, Field
 from pydantic_ai import Agent
 from pydantic_ai.models.ollama import OllamaModel
 from typing import Dict, Optional, List
+from datetime import datetime
+from tqdm import tqdm
+
+
+data_path_base = "/home/asheller/cicero/datasets/"
 
 
 class AnalystBehavior(BaseModel):
@@ -195,7 +200,6 @@ class AnalystBehaviorSimulator:
         Part of the behavior is the analyists previous history.
         '''
         history = list(self.history[self.history['uid'] == uid]['history'])[0]
-        print(f"length of history is {len(history)}")
         if len(history) == 0:
             return_string = "You have reviewed no articles."
         else:
@@ -205,7 +209,7 @@ class AnalystBehaviorSimulator:
             return_string = "You have previously interacted with the following articles:"
 
         return return_string
-        # TODO Left Off Here
+    
 
 
     async def behavior_as_the_analyst(self,analyst_uid, impression_id, article):
@@ -235,12 +239,9 @@ class AnalystBehaviorSimulator:
         Would you click on this article? (Respond with 1 for clicked, 0 for not clicked)
         """
         
-        print(f"Prompt \n{prompt}")
         # Query the LLM
         result = None
         result = await self.agent.run(prompt)
-        print("Acting as the Person Response:")
-        print(result.data if result else "No response.")
         return result.data
 
 
@@ -277,18 +278,28 @@ class AnalystBehaviorSimulator:
         Would they click on this article? (Respond with 1 for clicked, 0 for not clicked)
         What is your reasoning for clicking or not clicking on the article?
         """
-        print(f"Prompt \n{prompt}")
         # Query the LLM
         result = None
         #result = await agent.run(prompt)
-        #print("Acting on Behalf of the Person Response:")
-        #print(result.data if result else "No response.")
         return result
+
+    def update_history(self, uid, news_id):
+        '''
+        Given the UID update the history of the User
+        '''
+        row_index = self.history[self.history['uid'] == uid].index
+        if not row_index.empty:
+            current_history = self.history.loc[row_index[0], 'history']
+            current_history.append(news_id)
+            self.history.at[row_index[0], 'history'] = current_history
+        else:
+            print("UID not found in the DataFrame")
+        i =1
 
 
 async def main():
     MIND_type = "MINDsmall"
-    data_path_base = "/home/asheller/cicero/datasets/"
+    
     data_path = data_path_base + MIND_type + "/"
 
     history_file = data_path + "history.tsv"
@@ -321,32 +332,57 @@ async def main():
     behavior_simulator.create_agent()
 
     # Now iterate through all the users twice
-    behaviors = {}
-    for _ in range(len(behavior_simulator.uid_to_names) * 2):
-        # 1. Get an analyst
-        analyst_uid = behavior_simulator.pick_random_user()
+    behaviors = []
+    #for _ in range(len(behavior_simulator.uid_to_names) * 3):
 
-        # 2. Select the news articles for the analyst to review
-        session_articles = behavior_simulator.pick_random_news(num_articles=random.choice([1, 2, 3, 4, 5]))
+    total_iterations = len(behavior_simulator.uid_to_names) * 3
+    with tqdm(total=total_iterations, desc="Processing analysts", unit="iteration") as pbar:
+        for _ in range(total_iterations):
 
-        # 3. Get the next impression ID
-        impression_id = behavior_simulator.current_impression_id
+            # 1. Get an analyst
+            analyst_uid = behavior_simulator.pick_random_user()
 
-        # 4. Get the analyst's behavior
-        impressions_this_session = []
-        for article in session_articles.to_dict(orient='records'):
-            result = await behavior_simulator.behavior_as_the_analyst(analyst_uid, impression_id, article)
-            print(f"Result for article {article['news_id']}: {result}")
-            item = result.news_id + '-' + result.clicked
-            if  int(result.clicked):
-                behavior_simulator.history[analyst_uid].append(result.news_id)
-            impressions_this_session.append(item)
-            # Now create the behavior because we have everything we need.
-        ## TODO left off here.
-        
-        break  # Remove this break in your final script
+            # 2. Select the news articles for the analyst to review
+            session_articles = behavior_simulator.pick_random_news(num_articles=random.choice([1, 2, 3, 4, 5]))
 
-    print("Maybe complete")
+            # 3. Get the next impression ID
+            impression_id = behavior_simulator.current_impression_id
+
+            # 4. Get the analyst's behavior
+            impressions_this_session = []
+            for article in session_articles.to_dict(orient='records'):
+                result = await behavior_simulator.behavior_as_the_analyst(analyst_uid, impression_id, article)
+                item = result.news_id + '-' + result.clicked
+                if  int(result.clicked):
+                    behavior_simulator.update_history(analyst_uid, article['news_id'])
+                impressions_this_session.append(item)
+                # repeat for the articles
+
+            current_timestamp = datetime.now()
+            # Format it 
+            formatted_timestamp = current_timestamp.strftime("%m/%d/%Y %I:%M:%S %p")
+
+            row_index = behavior_simulator.history[behavior_simulator.history['uid'] == analyst_uid].index
+            history = behavior_simulator.history.loc[row_index[0], 'history']
+
+            behavior = {
+                'impression_id': int(impression_id),
+                'user_id': analyst_uid,
+                'time': formatted_timestamp,
+                'history': history,
+                'impressions': impressions_this_session
+            }
+            
+            behaviors.append(behavior)
+
+            # Update the progress bar
+            pbar.update(1)
+
+
+    new_behaviors = pd.DataFrame(behaviors)
+    new_behaviors_file = data_path + 'analyst_behavior.csv'
+    behavior_simulator.
+    ("Processing complete")
 
 
 
