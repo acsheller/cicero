@@ -1,18 +1,38 @@
+
+
+
 import os
 import random
 import asyncio
 import pandas as pd
-
-# Imports for Pydantic AI
-from pydantic import BaseModel, Field
-from pydantic_ai import Agent
-from pydantic_ai.models.ollama import OllamaModel
-from typing import Dict, Optional, List
 from datetime import datetime
 from tqdm import tqdm
+from datetime import datetime
+from typing import Dict, Optional, List
+
+# Imports for Pydantic AI
+from pydantic_ai import Agent
+from pydantic import BaseModel, Field
+from pydantic_ai.models.ollama import OllamaModel
 
 
+
+# Depending on if you are working in the container or not.  
+# data_path_base = "/home/asheller/cicero/datasets/" Would be outside the container
+#data_path_base = "/app/datasets/"
+
+# It is currently set to
 data_path_base = "/home/asheller/cicero/datasets/"
+
+model_name = "mistral:7b"  # Replace with your preferred model
+#model_name = "llama3.2"  # Replace with your preferred model
+#model_name = "deepseek-r1:7b"  # Replace with your preferred model
+
+base_url = "http://localhost:11434/v1/"  # Ollama's default base URL
+
+# Override these as you wish
+
+
 
 
 class AnalystBehavior(BaseModel):
@@ -104,23 +124,25 @@ class AnalystBehaviorSimulator:
         Returns:
             pd.DataFrame: The loaded or newly created DataFrame.
         """
-        if os.path.exists(file_path):
-            print(f"Loading file from {file_path}")
-            df = pd.read_csv(file_path, sep="\t",header=None)
-            if columns and len(df.columns) == 0:
-                df.columns = columns
-            return df
-            
-        else:
-            print(f"File not found. Creating {file_path}")
-            if columns is not None:
-                # Create a DataFrame with specified columns
-                df = pd.DataFrame(columns=columns)
+        try:
+            if os.path.exists(file_path):
+                print(f"Loading file from {file_path}")
+                df = pd.read_csv(file_path, sep="\t", header=None)
+                if columns and len(df.columns) == 0:
+                    df.columns = columns
+                return df
             else:
-                # Create an empty DataFrame without predefined columns
-                df = pd.DataFrame()
-            df.to_csv(file_path, sep="\t", index=False)
-            return df
+                print(f"File not found. Creating {file_path}")
+                if columns is not None:
+                    df = pd.DataFrame(columns=columns)
+                else:
+                    df = pd.DataFrame()
+                df.to_csv(file_path, sep="\t", index=False)
+                return df
+        except Exception as e:
+            print(f"Error in load_or_create_file for {file_path}: {e}")
+            return pd.DataFrame(columns=columns if columns else [])
+
 
     def save_file(self, file_path, df):
         """
@@ -130,27 +152,33 @@ class AnalystBehaviorSimulator:
             file_path (str): The path to the file.
             df (pd.DataFrame): The DataFrame to save.
         """
-        df.to_csv(file_path, sep="\t", index=False)
-        print(f"File saved to {file_path}")
+        try:
+            df.to_csv(file_path, sep="\t", index=False)
+            print(f"File saved to {file_path}")
+        except Exception as e:
+            print(f"Error saving file {file_path}: {e}")
 
-    def connect_ollama(self,ollama_url,model_name):
-        '''
-        This depends on an ollama server running serving-up models.
-
-        '''
-
-        self.ollama_model = OllamaModel(
-        model_name=model_name,  
-        base_url=ollama_url
-        )
+    def connect_ollama(self, ollama_url, model_name):
+        try:
+            self.ollama_model = OllamaModel(
+                model_name=model_name,
+                base_url=ollama_url
+            )
+            print(f"Connected to Ollama model: {model_name}")
+        except Exception as e:
+            print(f"Error connecting to Ollama server at {ollama_url} with model {model_name}: {e}")
+            self.ollama_model = None
 
     def create_agent(self):
-        """
-        Creates the Pydantic AI Agent 
-
-        """
-        if self.ollama_model:
-            self.agent = Agent(model=self.ollama_model,result_type=AnalystBehavior,retries=5)
+        try:
+            if self.ollama_model:
+                self.agent = Agent(model=self.ollama_model, result_type=AnalystBehavior, retries=5)
+                print("Agent successfully created.")
+            else:
+                raise ValueError("Ollama model not initialized. Cannot create agent.")
+        except Exception as e:
+            print(f"Error creating agent: {e}")
+            self.agent = None
 
 
     def pick_random_user(self):
@@ -197,6 +225,8 @@ class AnalystBehaviorSimulator:
 
     def __make_history(self,uid):
         '''
+
+        Not used but lef in.  In case history becomes a part of it.
         Part of the behavior is the analyists previous history.
         '''
         history = list(self.history[self.history['uid'] == uid]['history'])[0]
@@ -211,77 +241,28 @@ class AnalystBehaviorSimulator:
         return return_string
     
 
+    async def behavior_as_the_analyst(self, analyst_uid, impression_id, article):
+        try:
+            gender = {"F": 'female', "M": 'male'}
+            analyst = self.uid_and_analysts[self.uid_and_analysts['uid'] == analyst_uid].to_dict(orient='records')[0]
 
-    async def behavior_as_the_analyst(self,analyst_uid, impression_id, article):
-        '''
-  
-        '''
-        gender = {"F":'female',"M":'male'}
-        
-        # Get the analyst based on UID
-        analyst = self.uid_and_analysts[self.uid_and_analysts['uid'] == analyst_uid].to_dict(orient='records')[0]
+            prompt = f"""
+            You are {analyst['name']}, a {analyst['age']}-year-old {gender[analyst['gender']]} working as a {analyst['job']}.
+            {analyst['description']}
+            Session Details:
+            - User ID: {analyst['uid']}
+            - Impression ID: {impression_id}
+            - News ID: {article['news_id']}
+            The news article is titled: '{article['title']}'
 
-        # Need to get the history of the user from the history dataframe.
+            Would you click on this article? (Respond with 1 for clicked, 0 for not clicked)
+            """
+            result = await self.agent.run(prompt)
+            return result.data
+        except Exception as e:
+            #print(f"Error generating behavior for analyst {analyst_uid} with article {article['news_id']}: {e}")
+            return None
 
-        # history = self.__make_history(analyst_uid)
-
-        # Build the prompt
-        prompt = f"""
-        You are {analyst['name']}, a {analyst['age']}-year-old {analyst['gender']} working as a {analyst['job']}.
-        {analyst['description']}
-
-        Session Details:
-        - User ID: {analyst['uid']}
-        - Impression ID: {impression_id}
-        - News ID: {article['news_id']}
-        The news article is titled: '{article['title']}'
-
-        Would you click on this article? (Respond with 1 for clicked, 0 for not clicked)
-        """
-        
-        # Query the LLM
-        result = None
-        result = await self.agent.run(prompt)
-        return result.data
-
-
-
-
-    async def behavior_as_third_party(self, analyst, impression_id, history, article):
-        '''
-        Generate the behavior as an analyst one article at a time
-        '''
-        # Build the prompt
-        prompt = f"""
-        You are an expert judge of human character and news consumption behavior.
-
-        Session Details:
-        - User ID: {analyst['uid']}
-        - Impression ID: {impression['impression_id']}
-
-        Here is the user's profile:
-        - Name: {analyst['name']}
-        - Age: {analyst['age']}
-        - Gender: {analyst['gender']}
-        - Primary News Interest: {analyst['primary_news_interest']}
-        - Secondary News Interest: {analyst['secondary_news_interest']}
-        - Job: {analyst['job']}
-        - Description: {analyst['description']}
-
-        The user has previously interacted with the following articles:
-        {', '.join(history)}
-
-        Evaluate the following article:
-        - Title: '{impression['title']}'
-        - News ID: {impression['news_id']}
-
-        Would they click on this article? (Respond with 1 for clicked, 0 for not clicked)
-        What is your reasoning for clicking or not clicking on the article?
-        """
-        # Query the LLM
-        result = None
-        #result = await agent.run(prompt)
-        return result
 
     def update_history(self, uid, news_id):
         '''
@@ -294,95 +275,147 @@ class AnalystBehaviorSimulator:
             self.history.at[row_index[0], 'history'] = current_history
         else:
             print("UID not found in the DataFrame")
-        i =1
 
 
 async def main():
-    MIND_type = "MINDsmall"
-    
-    data_path = data_path_base + MIND_type + "/"
+    try:
+        MIND_type = "MINDsmall"
+        data_path = data_path_base + MIND_type + "/"
+        history_file = data_path + "history.tsv"
+        impressions_file = data_path + "impressions.tsv"
+        behaviors_file = data_path + "train/behaviors.tsv"
+        analysts_file = data_path_base + "synthetic_analysts.csv"
+        news_file = data_path + "train/news.tsv"
+        uid_to_names = data_path + "uid_to_name.tsv"
 
-    history_file = data_path + "history.tsv"
-    impressions_file = data_path + "impressions.tsv"
-    behaviors_file = data_path + "train/behaviors.tsv"
-    analysts_file = data_path_base + "synthetic_analysts.csv"
-    news_file = data_path + "train/news.tsv"
-    uid_to_names = data_path + "uid_to_name.tsv"
+        # Initialize the behavior simulator
+        behavior_simulator = AnalystBehaviorSimulator(
+            history_file=history_file,
+            impressions_file=impressions_file,
+            analysts_file=analysts_file,
+            behaviors_file=behaviors_file,
+            news_file=news_file,
+            uid_to_names=uid_to_names
+        )
 
-    # Create a behavior_simulator
-    behavior_simulator = AnalystBehaviorSimulator(
-        history_file=history_file,
-        impressions_file=impressions_file,
-        analysts_file=analysts_file,
-        behaviors_file=behaviors_file,
-        news_file=news_file,
-        uid_to_names=uid_to_names
-    )
+        # Connect to Ollama server and create the agent
+        behavior_simulator.connect_ollama(ollama_url=base_url, model_name=model_name)
+        behavior_simulator.create_agent()
 
-    # Connect to Ollama
-    #model_name = "mistral:7b"  # Replace with your preferred model
-    model_name = "llama3.2"  # Replace with your preferred model
+        behaviors = []
+        total_iterations = len(behavior_simulator.uid_to_names) * 3
+        with tqdm(total=total_iterations, desc="Processing analysts", unit="iteration") as pbar:
+            for _ in range(total_iterations):
+                try:
+                    # Step 1: Pick a random analyst
+                    analyst_uid = behavior_simulator.pick_random_user()
 
-    base_url = "http://localhost:11434/v1/"  # Ollama's default base URL
+                    # Step 2: Select news articles for the analyst to review
+                    session_articles = behavior_simulator.pick_random_news(num_articles=random.choice([1, 2, 3, 4, 5]))
 
-    # Make a connection to the local Ollama Server
-    behavior_simulator.connect_ollama(ollama_url=base_url, model_name=model_name)
+                    # Step 3: Get the next impression ID
+                    impression_id = behavior_simulator.current_impression_id
 
-    # Create an Agent after Ollama connection is established
-    behavior_simulator.create_agent()
+                    # Step 4: Generate behavior for each article with retry logic
+                    impressions_this_session = []
+                    for article in session_articles.to_dict(orient='records'):
+                        retry_attempts = 0
+                        max_retries = 5
+                        success = False
 
-    # Now iterate through all the users twice
-    behaviors = []
-    #for _ in range(len(behavior_simulator.uid_to_names) * 3):
+                        while not success and retry_attempts < max_retries:
+                            try:
+                                result = await behavior_simulator.behavior_as_the_analyst(analyst_uid, impression_id, article)
 
-    total_iterations = len(behavior_simulator.uid_to_names) * 3
-    with tqdm(total=total_iterations, desc="Processing analysts", unit="iteration") as pbar:
-        for _ in range(total_iterations):
+                                # Validate the result
+                                if result and hasattr(result, 'news_id') and hasattr(result, 'clicked'):
+                                    item = result.news_id + '-' + result.clicked
+                                    if int(result.clicked):
+                                        behavior_simulator.update_history(analyst_uid, article['news_id'])
+                                    impressions_this_session.append(item)
+                                    success = True
+                                else:
+                                    raise ValueError("Incomplete or invalid result returned by the agent.")
+                            except Exception as e:
+                                retry_attempts += 1
+                                #print(f"Error retrieving behavior for article {article['news_id']}, attempt {retry_attempts}: {e}")
 
-            # 1. Get an analyst
-            analyst_uid = behavior_simulator.pick_random_user()
+                        if not success:
+                            print(f"Failed to retrieve behavior for article {article['news_id']} after {max_retries} attempts. Skipping.")
 
-            # 2. Select the news articles for the analyst to review
-            session_articles = behavior_simulator.pick_random_news(num_articles=random.choice([1, 2, 3, 4, 5]))
+                    # Skip if no valid impressions were generated
+                    if not impressions_this_session:
+                        print(f"No valid impressions for analyst {analyst_uid}, skipping.")
+                        continue
 
-            # 3. Get the next impression ID
-            impression_id = behavior_simulator.current_impression_id
+                    # Step 5: Create a behavior record
+                    current_timestamp = datetime.now().strftime("%m/%d/%Y %I:%M:%S %p")
+                    history = behavior_simulator.history.loc[
+                        behavior_simulator.history['uid'] == analyst_uid, 'history'
+                    ].iloc[0]
 
-            # 4. Get the analyst's behavior
-            impressions_this_session = []
-            for article in session_articles.to_dict(orient='records'):
-                result = await behavior_simulator.behavior_as_the_analyst(analyst_uid, impression_id, article)
-                item = result.news_id + '-' + result.clicked
-                if  int(result.clicked):
-                    behavior_simulator.update_history(analyst_uid, article['news_id'])
-                impressions_this_session.append(item)
-                # repeat for the articles
+                    behavior = {
+                        'impression_id': int(impression_id),
+                        'user_id': analyst_uid,
+                        'time': current_timestamp,
+                        'history': history,
+                        'impressions': impressions_this_session
+                    }
+                    behaviors.append(behavior)
 
-            current_timestamp = datetime.now()
-            # Format it 
-            formatted_timestamp = current_timestamp.strftime("%m/%d/%Y %I:%M:%S %p")
+                except Exception as e:
+                    print(f"Error processing analyst behavior for UID {analyst_uid}: {e}")
 
-            row_index = behavior_simulator.history[behavior_simulator.history['uid'] == analyst_uid].index
-            history = behavior_simulator.history.loc[row_index[0], 'history']
+                # Update the progress bar
+                pbar.update(1)
 
-            behavior = {
-                'impression_id': int(impression_id),
-                'user_id': analyst_uid,
-                'time': formatted_timestamp,
-                'history': history,
-                'impressions': impressions_this_session
-            }
-            
-            behaviors.append(behavior)
+                if len(behaviors) % 10 == 0 or len(behaviors) >= total_iterations:
+                    # Define the file path for the CSV
+                    new_behaviors_file = data_path + 'analyst_behavior.csv'
 
-            # Update the progress bar
-            pbar.update(1)
+                    # Check if the file exists
+                    if os.path.exists(new_behaviors_file):
+                        try:
+                            # Check if the file is not empty
+                            if os.path.getsize(new_behaviors_file) > 0:
+                                # Load the existing CSV into a DataFrame
+                                existing_behaviors = pd.read_csv(new_behaviors_file)
+                                #print(f"Loaded existing behaviors from {new_behaviors_file}")
+                            else:
+                                # File is empty, create an empty DataFrame
+                                #print(f"{new_behaviors_file} is empty. Initializing a new DataFrame.")
+                                existing_behaviors = pd.DataFrame()
+                        except Exception as e:
+                            print(f"Error reading {new_behaviors_file}: {e}")
+                            existing_behaviors = pd.DataFrame()  # Create an empty DataFrame if reading fails
+                    else:
+                        # Create an empty DataFrame if the file doesn't exist
+                        #print(f"{new_behaviors_file} does not exist. Creating a new one.")
+                        existing_behaviors = pd.DataFrame()
 
+                    # Convert current behaviors to a DataFrame
+                    new_behaviors = pd.DataFrame(behaviors)
 
-    new_behaviors = pd.DataFrame(behaviors)
-    new_behaviors_file = data_path + 'analyst_behavior.csv'
-    behavior_simulator.
-    ("Processing complete")
+                    # Combine existing and new behaviors
+                    combined_behaviors = pd.concat([existing_behaviors, new_behaviors], ignore_index=True)
+
+                    # Save the combined DataFrame back to the CSV
+                    try:
+                        combined_behaviors.to_csv(new_behaviors_file, index=False)
+                        #print(f"Saved combined behaviors to {new_behaviors_file}")
+                        # TODO Double check this is working well
+                        behavior_simulator.history.to_csv(behavior_simulator.history_file, index=False)
+                    except Exception as e:
+                        print(f"Error saving to {new_behaviors_file}: {e}")
+
+                    # Reset the behaviors list
+                    behaviors = []
+ 
+ 
+        print("Processing complete")
+
+    except Exception as e:
+        print(f"Error in main execution: {e}")
 
 
 
