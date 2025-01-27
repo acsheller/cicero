@@ -60,7 +60,7 @@ class AnalystBehaviorSimulator:
     A class to simulate analyst behaviors interacting with news articles using an LLM.
     """
     
-    def __init__(self, history_file,impressions_file,analysts_file,behaviors_file,news_file,uid_to_names):
+    def __init__(self, history_file,analysts_file,behaviors_file,news_file,uid_to_names):
         """
         Initialize the simulator with an LLM agent and tracking for analysts.
 
@@ -73,13 +73,12 @@ class AnalystBehaviorSimulator:
         """
         self.analyst_data = {}  # Dictionary to store analyst-specific history and impressions
         self.history_file = history_file
-        self.impressions_file = impressions_file
+        
         self.analysts_file = analysts_file
         self.behaviors_file = behaviors_file
         self.news_file = news_file
         self.uid_to_names_file = uid_to_names
 
-        self.impressions = self.load_or_create_file(self.impressions_file, ["impression_id", "uid", "news_id", "clicked"])
         
         self.analysts = pd.read_csv(self.analysts_file)
         
@@ -100,48 +99,35 @@ class AnalystBehaviorSimulator:
 
         self.uid_and_analysts = self.uid_to_names.merge(self.analysts, on="name", how="inner")
 
-        self.history = self.load_or_create_file(self.history_file, ["uid", "history"])
+
+        if os.path.exists(self.history_file):
+            try:
+                if os.path.getsize(self.history_file) > 0:
+                    self.history = pd.read_csv(self.history_file)
+                    print(f'Loaded existing history from {self.history_file}')
+                else:
+                    print(f'{self.history_file} is empty. Initializing a new dataframe')
+                    self.history = pd.DataFrame()
+            except Exception as e:
+                print(f'Error reading {self.history_file}: {e}')
+                self.history = pd.DataFrame()
+            
+        else:
+            print(f'{self.history_file} does not exist. Creating a new one.')
+            self.history = pd.DataFrame()
+
+
+
         if len(self.history) != len(self.analysts):
+            # Need to reinistalizing it
             self.history = pd.DataFrame({"uid": self.uid_to_names["uid"],  # Take UIDs from the merged DataFrame
             "history": [[] for _ in range(len(self.uid_to_names))]  # Start with empty lists
             })
-        self.save_file(self.history_file,self.history)
 
         # Need to create a next impression ID to be used.abs
         max_impression_id = self.behaviors["impression_id"].max()
         self.current_impression_id = max_impression_id + 1
 
-
-
-    def load_or_create_file(self, file_path, columns=None):
-        """
-        Load a file if it exists, otherwise create an empty one with specified columns.
-
-        Args:
-            file_path (str): The path to the file.
-            columns (list or None): List of column names for the DataFrame. If None, columns will not be pre-defined.
-
-        Returns:
-            pd.DataFrame: The loaded or newly created DataFrame.
-        """
-        try:
-            if os.path.exists(file_path):
-                print(f"Loading file from {file_path}")
-                df = pd.read_csv(file_path, sep="\t", header=None)
-                if columns and len(df.columns) == 0:
-                    df.columns = columns
-                return df
-            else:
-                print(f"File not found. Creating {file_path}")
-                if columns is not None:
-                    df = pd.DataFrame(columns=columns)
-                else:
-                    df = pd.DataFrame()
-                df.to_csv(file_path, sep="\t", index=False)
-                return df
-        except Exception as e:
-            print(f"Error in load_or_create_file for {file_path}: {e}")
-            return pd.DataFrame(columns=columns if columns else [])
 
 
     def save_file(self, file_path, df):
@@ -277,7 +263,7 @@ class AnalystBehaviorSimulator:
             print("UID not found in the DataFrame")
 
 
-async def main():
+async def main(total_iterations = None):
     try:
         MIND_type = "MINDsmall"
         data_path = data_path_base + MIND_type + "/"
@@ -291,7 +277,6 @@ async def main():
         # Initialize the behavior simulator
         behavior_simulator = AnalystBehaviorSimulator(
             history_file=history_file,
-            impressions_file=impressions_file,
             analysts_file=analysts_file,
             behaviors_file=behaviors_file,
             news_file=news_file,
@@ -303,7 +288,8 @@ async def main():
         behavior_simulator.create_agent()
 
         behaviors = []
-        total_iterations = len(behavior_simulator.uid_to_names) * 3
+        if not total_iterations:
+            total_iterations = len(behavior_simulator.uid_to_names) * 3
         with tqdm(total=total_iterations, desc="Processing analysts", unit="iteration") as pbar:
             for _ in range(total_iterations):
                 try:
@@ -420,4 +406,5 @@ async def main():
 
 
 if __name__ == '__main__':
+    # With no arguments it will run for 3x the number of analysts.
     asyncio.run(main())

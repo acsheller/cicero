@@ -221,7 +221,8 @@ class SimulatedAnalystGenerator:
                 if profile:
                     return profile
             except Exception as e:
-                print(f"Exception during profile generation (attempt {attempt + 1}:  {e})")
+                pass
+                #print(f"Exception during profile generation (attempt {attempt + 1}:  {e})")
         return None
 
 
@@ -266,9 +267,9 @@ if __name__ == '__main__':
 
 
     analyst_file = data_path_base + "synthetic_analysts.csv"
-    analyst_generator = SimulatedAnalystGenerator(analysts_file=analyst_file,num_profiles=55)
+    analyst_generator = SimulatedAnalystGenerator(analysts_file=analyst_file,num_profiles=691)
     try:
-        asyncio.run(analyst_generator.generate_profiles(num_profiles=55))
+        asyncio.run(analyst_generator.generate_profiles(num_profiles=691))
 
     except Exception as e:
         print(f"some sort of exeception {e}")
