@@ -16,7 +16,7 @@ from typing import Dict, Optional, List
 
 # This should be mounted into the contaainer when it runs
 # /app/datasets when running in container
-data_path_base = "/home/asheller/cicero/datasets/"
+data_path_base = "/home/acshell/cicero/datasets/"
 
 model_name = "mistral:7b"  # Replace with your preferred model
 #model_name = "llama3.2"  # Replace with your preferred model
@@ -248,15 +248,27 @@ class SimulatedAnalystGenerator:
                             pbar.update(1)
 
                             if len(profiles) % 10 == 0 or self.total_required_profiles == len(self.analysts) + len(profiles):
+                            
+                                print(f"Preparing to save Data. length of Analysts is: {len(self.analysts)}")
+                                print(f"Length of Profiles is {len(profiles)}")
                                 new_data = pd.DataFrame(profiles)
+                                new_data["name"] = new_data["name"].str.strip()
+
+                                # Check for duplicates
+                                duplicate_profiles = new_data[new_data["name"].isin(self.analysts["name"])]
+                                print(f"Duplicate profiles being removed: {len(duplicate_profiles)}")
+
                                 self.analysts = pd.concat([self.analysts, new_data], ignore_index=True).drop_duplicates(subset="name",keep="first").reset_index(drop=True)
                                 self.analysts.to_csv(self.analysts_file,index=False)
-                                profiles = []
 
+                                profiles = []
+                                print(f"Length of Analysts is now: {len(self.analysts)}")
+                                print(f"Length of Profiles is {len(profiles)}")
+                                print(f"Total Required Profiles: {self.total_required_profiles}, Current Total: {len(self.analysts) + len(profiles)}")                               
                                 if self.total_required_profiles == len(self.analysts) + len(profiles):
                                     break
                     except Exception as e:
-                        printe(f"Exception {e}")
+                        print(f"Exception {e}")
                         retries += 1
                         if retries > max_retries:
                             break            
@@ -269,7 +281,7 @@ if __name__ == '__main__':
     analyst_file = data_path_base + "synthetic_analysts.csv"
     analyst_generator = SimulatedAnalystGenerator(analysts_file=analyst_file,num_profiles=691)
     try:
-        asyncio.run(analyst_generator.generate_profiles(num_profiles=691))
+        asyncio.run(analyst_generator.generate_profiles(num_profiles=100))
 
     except Exception as e:
         print(f"some sort of exeception {e}")
