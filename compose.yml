@@ -44,6 +44,9 @@ services:
     build:
       context: .
       dockerfile: Dockerfile.suber
+      args:
+        HOST_UID: "${UID}"
+        HOST_GID: "${GID}"
     container_name: suber-container
     runtime: nvidia
     environment:
@@ -67,32 +70,32 @@ services:
         soft: 67108864
         hard: 67108864
 
-  pyai:
-    build:
-      context: .
-      dockerfile: Dockerfile.pyai
-    container_name: pyai-container
-    runtime: nvidia
-    environment:
-      - NVIDIA_VISIBLE_DEVICES=all
-      - NVIDIA_DRIVER_CAPABILITIES=compute,utility
-    networks:
-      - cicero
-    volumes:
-      - ./pyai:/app/jupyter
-      - ./datasets:/app/datasets
-    ports:
-      - "8890:8890"
-    stdin_open: true
-    tty: true
-    ipc: host
-    ulimits:
-      memlock:
-        soft: -1
-        hard: -1
-      stack:
-        soft: 67108864
-        hard: 67108864
+  # pyai:
+  #   build:
+  #     context: .
+  #     dockerfile: Dockerfile.pyai
+  #   container_name: pyai-container
+  #   runtime: nvidia
+  #   environment:
+  #     - NVIDIA_VISIBLE_DEVICES=all
+  #     - NVIDIA_DRIVER_CAPABILITIES=compute,utility
+  #   networks:
+  #     - cicero
+  #   volumes:
+  #     - ./pyai:/app/jupyter
+  #     - ./datasets:/app/datasets
+  #   ports:
+  #     - "8890:8890"
+  #   stdin_open: true
+  #   tty: true
+  #   ipc: host
+  #   ulimits:
+  #     memlock:
+  #       soft: -1
+  #       hard: -1
+  #     stack:
+  #       soft: 67108864
+  #       hard: 67108864
 
   # gnuradio:
   #   build:

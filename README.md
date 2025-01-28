@@ -13,9 +13,12 @@ Setup
 Get the MIND datasets and set it up as described in the [datasets documentation for Cicero](/datasets/README.md).
 
 
-For a time-saver create some aliases like this, place them in your `.bashrc` and source it.
+For a time-saver create some aliases like this, place them in your `.bashrc` and source it. The UID and GID are set because the containers mount in a local directory.  the permissions on the files need to be set appropriately. Do a `sudo apt install id-utils` to install the `id` command.
 
 ```.bash
+
+export UID=$(id -u)
+export GID=$(id -g) 
 
 alias dc='docker-compose'
 alias dcup='docker-compose up --build -d'
