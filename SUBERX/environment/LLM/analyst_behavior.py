@@ -12,7 +12,7 @@ from typing import Dict, Optional, List
 
 # Imports for Pydantic AI
 from pydantic_ai import Agent
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 from pydantic_ai.models.ollama import OllamaModel
 
 
@@ -30,10 +30,6 @@ model_name = "mistral:7b"  # Replace with your preferred model
 
 base_url = "http://localhost:11434/v1/"  # Ollama's default base URL
 
-# Override these as you wish
-
-
-
 
 class AnalystBehavior(BaseModel):
     """
@@ -43,6 +39,39 @@ class AnalystBehavior(BaseModel):
     user_id: str = Field(description="The unique identifier of the analyst.")
     news_id: str = Field(description="The unique identifier of the news article.")
     clicked: str = Field(description="a 1 if clicked, a 0 if not clicked")
+
+    # Validate impression_id
+    @field_validator("impression_id")
+    @classmethod
+    def validate_impression_id(cls, impression_id):
+        if not impression_id.strip():
+            raise ValueError("Impression ID cannot be empty.")
+        return impression_id.strip()
+
+    # Validate user_id
+    @field_validator("user_id")
+    @classmethod
+    def validate_user_id(cls, user_id):
+        if not user_id.strip():
+            raise ValueError("User ID cannot be empty.")
+        return user_id.strip()
+
+    # Validate news_id
+    @field_validator("news_id")
+    @classmethod
+    def validate_news_id(cls, news_id):
+        if not news_id.strip():
+            raise ValueError("News ID cannot be empty.")
+        return news_id.strip()
+
+    # Validate clicked
+    @field_validator("clicked")
+    @classmethod
+    def validate_clicked(cls, clicked):
+        if clicked not in {"0", "1"}:
+            raise ValueError("Clicked must be '0' or '1'.")
+        return clicked
+
 
     def __str__(self):
         return (
