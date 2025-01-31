@@ -132,31 +132,75 @@ class AnalystBehaviorSimulator:
         if os.path.exists(self.history_file):
             try:
                 if os.path.getsize(self.history_file) > 0:
-                    self.history = pd.read_csv(self.history_file)
+                    self.history = self.load_history_from_tsv(self.history_file)
                     print(f'Loaded existing history from {self.history_file}')
                 else:
-                    print(f'{self.history_file} is empty. Initializing a new dataframe')
-                    self.history = pd.DataFrame()
+                    print(f'{self.history_file} is empty. Initializing new history dictionary')
+                    self.history = {}
             except Exception as e:
                 print(f'Error reading {self.history_file}: {e}')
-                self.history = pd.DataFrame()
-            
+                self.history = {}
         else:
             print(f'{self.history_file} does not exist. Creating a new one.')
-            self.history = pd.DataFrame()
+            self.history = {}
 
+        # Ensure all analysts have an entry in history
+        self.ensure_all_uids_have_history()
 
-
-        if len(self.history) != len(self.analysts):
-            # Need to reinistalizing it
-            self.history = pd.DataFrame({"uid": self.uid_to_names["uid"],  # Take UIDs from the merged DataFrame
-            "history": [[] for _ in range(len(self.uid_to_names))]  # Start with empty lists
-            })
 
         # Need to create a next impression ID to be used.abs
         max_impression_id = self.behaviors["impression_id"].max()
         self.current_impression_id = max_impression_id + 1
 
+    def ensure_all_uids_have_history(self):
+        """
+        Ensures that all users in self.uid_to_names have a history entry.
+        If a UID is missing, it initializes it with an empty list.
+        """
+        for uid in self.uid_to_names["uid"]:
+            if uid not in self.history:
+                self.history[uid] = []
+
+
+    def load_history_from_tsv(self, file_path):
+        """
+        Load user history from a TSV file into a dictionary.
+        """
+        df = pd.read_csv(file_path, sep="\t", dtype={'history': str})
+
+        # Convert 'history' column from a string to an actual list
+        history_dict = {
+            row['uid']: eval(row['history']) if isinstance(row['history'], str) else row['history']
+            for _, row in df.iterrows()
+        }
+
+        return history_dict
+
+    def update_history(self, uid, news_id):
+        """
+        Given the UID, update the history of the user in the dictionary.
+        Returns a copy of the history before updating.
+        """
+        if uid in self.history:
+            previous_history = self.history[uid].copy()  # Copy before modifying
+            self.history[uid].append(news_id)
+        else:
+            previous_history = []  # New user, so history starts empty
+            self.history[uid] = [news_id]
+
+        return previous_history
+
+
+    def save_history_to_tsv(self):
+        """
+        Save the history dictionary back to a TSV file.
+        """
+        df = pd.DataFrame(list(self.history.items()), columns=['uid', 'history'])
+        
+        # Convert lists to string format for saving
+        df['history'] = df['history'].apply(str)
+
+        df.to_csv(self.history_file, sep="\t", index=False)
 
 
     def save_file(self, file_path, df):
@@ -238,22 +282,7 @@ class AnalystBehaviorSimulator:
         """
         return self.news.sample(n=num_articles)
 
-    def __make_history(self,uid):
-        '''
 
-        Not used but lef in.  In case history becomes a part of it.
-        Part of the behavior is the analyists previous history.
-        '''
-        history = list(self.history[self.history['uid'] == uid]['history'])[0]
-        if len(history) == 0:
-            return_string = "You have reviewed no articles."
-        else:
-            for hs in history:
-                news_id,review =hs.split('-')
-                article = self.news[self.news['']]
-            return_string = "You have previously interacted with the following articles:"
-
-        return return_string
     
 
     async def behavior_as_the_analyst(self, analyst_uid, impression_id, article):
@@ -278,18 +307,6 @@ class AnalystBehaviorSimulator:
             #print(f"Error generating behavior for analyst {analyst_uid} with article {article['news_id']}: {e}")
             return None
 
-
-    def update_history(self, uid, news_id):
-        '''
-        Given the UID update the history of the User
-        '''
-        row_index = self.history[self.history['uid'] == uid].index
-        if not row_index.empty:
-            current_history = self.history.loc[row_index[0], 'history']
-            current_history.append(news_id)
-            self.history.at[row_index[0], 'history'] = current_history
-        else:
-            print("UID not found in the DataFrame")
 
 
 async def main(total_iterations = None):
@@ -333,6 +350,7 @@ async def main(total_iterations = None):
 
                     # Step 4: Generate behavior for each article with retry logic
                     impressions_this_session = []
+                    history_this_session = []
                     for article in session_articles.to_dict(orient='records'):
                         retry_attempts = 0
                         max_retries = 5
@@ -346,7 +364,7 @@ async def main(total_iterations = None):
                                 if result and hasattr(result, 'news_id') and hasattr(result, 'clicked'):
                                     item = result.news_id + '-' + result.clicked
                                     if int(result.clicked):
-                                        behavior_simulator.update_history(analyst_uid, article['news_id'])
+                                        history_this_session.append(result.news_id)
                                     impressions_this_session.append(item)
                                     success = True
                                 else:
@@ -365,18 +383,16 @@ async def main(total_iterations = None):
 
                     # Step 5: Create a behavior record
                     current_timestamp = datetime.now().strftime("%m/%d/%Y %I:%M:%S %p")
-                    history = behavior_simulator.history.loc[
-                        behavior_simulator.history['uid'] == analyst_uid, 'history'
-                    ].iloc[0]
-
+                    prior_history = behavior_simulator.update_history(analyst_uid,history_this_session)
                     behavior = {
                         'impression_id': int(impression_id),
                         'user_id': analyst_uid,
                         'time': current_timestamp,
-                        'history': history,
+                        'history': prior_history,
                         'impressions': impressions_this_session
                     }
                     behaviors.append(behavior)
+                    
 
                 except Exception as e:
                     print(f"Error processing analyst behavior for UID {analyst_uid}: {e}")
@@ -384,7 +400,7 @@ async def main(total_iterations = None):
                 # Update the progress bar
                 pbar.update(1)
 
-                if len(behaviors) % 10 == 0 or len(behaviors) >= total_iterations:
+                if len(behaviors) % 5 == 0 or len(behaviors) >= total_iterations:
                     # Define the file path for the CSV
                     new_behaviors_file = data_path + 'analyst_behavior.csv'
 
@@ -419,7 +435,8 @@ async def main(total_iterations = None):
                         combined_behaviors.to_csv(new_behaviors_file, index=False)
                         #print(f"Saved combined behaviors to {new_behaviors_file}")
                         # TODO Double check this is working well
-                        behavior_simulator.history.to_csv(behavior_simulator.history_file, index=False)
+                        behavior_simulator.save_history_to_tsv()
+                        
                     except Exception as e:
                         print(f"Error saving to {new_behaviors_file}: {e}")
 
