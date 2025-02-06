@@ -176,17 +176,19 @@ class AnalystBehaviorSimulator:
 
         return history_dict
 
-    def update_history(self, uid, news_id):
+    def update_history(self, uid, news_ids):
         """
         Given the UID, update the history of the user in the dictionary.
         Returns a copy of the history before updating.
         """
         if uid in self.history:
             previous_history = self.history[uid].copy()  # Copy before modifying
-            self.history[uid].append(news_id)
+            if len(news_ids) > 0:
+                self.history[uid].extend(news_ids)
         else:
             previous_history = []  # New user, so history starts empty
-            self.history[uid] = [news_id]
+            if len(news_ids) > 0:
+                self.history[uid].extend(news_ids)
 
         return previous_history
 
@@ -307,7 +309,10 @@ class AnalystBehaviorSimulator:
             #print(f"Error generating behavior for analyst {analyst_uid} with article {article['news_id']}: {e}")
             return None
 
-
+    def format_behaviors(self,df):            
+        df["history"] = df["history"].apply(lambda x: " ".join(x) if isinstance(x, list) else str(x))
+        df["impressions"] = df["impressions"].apply(lambda x: " ".join(x) if isinstance(x, list) else str(x))
+        return df
 
 async def main(total_iterations = None):
     try:
@@ -428,12 +433,18 @@ async def main(total_iterations = None):
                     new_behaviors = pd.DataFrame(behaviors)
 
                     # Combine existing and new behaviors
-                    combined_behaviors = pd.concat([existing_behaviors, new_behaviors], ignore_index=True)
+                    combined_behaviors = behavior_simulator.format_behaviors(pd.concat([existing_behaviors, new_behaviors], ignore_index=True))
 
                     # Save the combined DataFrame back to the CSV
                     try:
-                        combined_behaviors.to_csv(new_behaviors_file, index=False)
-                        #print(f"Saved combined behaviors to {new_behaviors_file}")
+                        combined_behaviors.to_csv(
+                            news_behaviors_file,
+                            sep="\t", 
+                            index=False,
+                            header=False,
+                            quoting=3  # Ensure no unexpected quotes
+                        )
+
                         # TODO Double check this is working well
                         behavior_simulator.save_history_to_tsv()
                         
