@@ -116,10 +116,22 @@ class AnalystBehaviorSimulator:
         self.behaviors.columns = ["impression_id", "user_id", "time", "history", "impressions"]
         self.news = pd.read_csv(news_file, sep="\t", header=None)
         self.news.columns = ["news_id", "category", "subcategory", "title", "abstract", "url", "title_entities", "abstract_entities"]
-        self.uid_to_names = pd.read_csv(uid_to_names,sep='\t')
 
+        if os.path.exists(self.uid_to_names_file):
+            try:
+
+                self.uid_to_names = pd.read_csv(uid_to_names,sep='\t')
+            except Exception as e:
+                print(f'Error loading uid to names file {e}')
+        else:
+            # The file is empty so
+            num_analysts = len(self.analysts)
+            obfuscated_ids = [f"A{random.randint(1000, 9999)}" for _ in range(num_analysts)]
+            zipped_data = list(zip(obfuscated_ids,self.analysts["name"]))
+            self.uid_to_names = pd.DataFrame(zipped_data, columns=["uid", "name"])
+            self.save_file(self.uid_to_names_file, self.uid_to_names)
         if len(self.uid_to_names) != len(self.analysts):
-            # The file is empyt so
+            # The file is not empty but we don't have equal amonts in each file
             num_analysts = len(self.analysts)
             obfuscated_ids = [f"A{random.randint(1000, 9999)}" for _ in range(num_analysts)]
             zipped_data = list(zip(obfuscated_ids,self.analysts["name"]))
