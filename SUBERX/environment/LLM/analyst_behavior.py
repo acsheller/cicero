@@ -336,6 +336,7 @@ async def main(total_iterations = None):
         analysts_file = data_path_base + "synthetic_analysts.csv"
         news_file = data_path + "train/news.tsv"
         uid_to_names = data_path + "uid_to_name.tsv"
+        news_behaviors_file = data_path + "new_behaviors.tsv"
 
         # Initialize the behavior simulator
         behavior_simulator = AnalystBehaviorSimulator(
