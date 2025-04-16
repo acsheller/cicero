@@ -1,0 +1,31 @@
+FROM nvidia/cuda:12.6.2-cudnn-devel-ubuntu22.04
+
+ENV DEBIAN_FRONTEND=noninteractive
+ENV TZ=America/New_York
+
+RUN apt-get update && apt-get install -y \
+    curl wget gnupg2 sudo git build-essential python3 python3-pip python3-venv python-is-python3 \
+    && rm -rf /var/lib/apt/lists/*
+
+# Add non-root user
+RUN useradd -ms /bin/bash guser && \
+    echo "guser ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers
+
+# Switch to user
+USER guser
+WORKDIR /home/guser
+
+# Install code-server
+RUN curl -fsSL https://code-server.dev/install.sh | sh
+
+# Optional: install code extensions (example)
+# RUN ~/.local/bin/code-server --install-extension ms-python.python
+
+# Copy configuration (adjust password or use hashed password/token)
+RUN mkdir -p ~/.config/code-server
+COPY --chown=guser:guser config.yaml ~/.config/code-server/config.yaml
+
+# Expose code-server port
+EXPOSE 8080
+
+CMD ["~/.local/bin/code-server"]

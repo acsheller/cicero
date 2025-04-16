@@ -137,7 +137,8 @@ class SimulatedAnalystGenerator:
         Constructor
 
         """
-        self.analysts_file = analyst_file
+
+        self.analysts_file = analysts_file
         if os.path.exists(analysts_file):
             self.analysts = pd.read_csv(self.analysts_file)
         else:
@@ -309,10 +310,10 @@ class SimulatedAnalystGenerator:
 if __name__ == '__main__':
 
 
-    analyst_file = data_path_base + "synthetic_analysts.csv"
-    analyst_generator = SimulatedAnalystGenerator(analysts_file=analyst_file,num_profiles=305)
+    analyst_file = data_path_base + "synthetic_analysts2.csv"
+    analyst_generator = SimulatedAnalystGenerator(analysts_file=analyst_file,num_profiles=1000)
     try:
-        asyncio.run(analyst_generator.generate_profiles(num_profiles=305))
+        asyncio.run(analyst_generator.generate_profiles(num_profiles=1000))
 
     except Exception as e:
         print(f"some sort of exeception {e}")

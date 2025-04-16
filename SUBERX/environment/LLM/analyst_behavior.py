@@ -1,7 +1,10 @@
+"""
+A Python Class to simulate Analysts Behavior
 
-
+"""
 
 import os
+import csv
 import random
 import asyncio
 import pandas as pd
@@ -116,10 +119,22 @@ class AnalystBehaviorSimulator:
         self.behaviors.columns = ["impression_id", "user_id", "time", "history", "impressions"]
         self.news = pd.read_csv(news_file, sep="\t", header=None)
         self.news.columns = ["news_id", "category", "subcategory", "title", "abstract", "url", "title_entities", "abstract_entities"]
-        self.uid_to_names = pd.read_csv(uid_to_names,sep='\t')
 
+        if os.path.exists(self.uid_to_names_file):
+            try:
+
+                self.uid_to_names = pd.read_csv(uid_to_names,sep='\t')
+            except Exception as e:
+                print(f'Error loading uid to names file {e}')
+        else:
+            # The file is empty so
+            num_analysts = len(self.analysts)
+            obfuscated_ids = [f"A{random.randint(1000, 9999)}" for _ in range(num_analysts)]
+            zipped_data = list(zip(obfuscated_ids,self.analysts["name"]))
+            self.uid_to_names = pd.DataFrame(zipped_data, columns=["uid", "name"])
+            self.save_file(self.uid_to_names_file, self.uid_to_names)
         if len(self.uid_to_names) != len(self.analysts):
-            # The file is empyt so
+            # The file is not empty but we don't have equal amonts in each file
             num_analysts = len(self.analysts)
             obfuscated_ids = [f"A{random.randint(1000, 9999)}" for _ in range(num_analysts)]
             zipped_data = list(zip(obfuscated_ids,self.analysts["name"]))
@@ -176,17 +191,18 @@ class AnalystBehaviorSimulator:
 
         return history_dict
 
-    def update_history(self, uid, news_id):
+    def update_history(self, uid, news_ids):
         """
         Given the UID, update the history of the user in the dictionary.
         Returns a copy of the history before updating.
         """
-        if uid in self.history:
-            previous_history = self.history[uid].copy()  # Copy before modifying
-            self.history[uid].append(news_id)
-        else:
-            previous_history = []  # New user, so history starts empty
-            self.history[uid] = [news_id]
+        previous_history = self.history.get(uid, []).copy()  # Safely get existing history or empty list
+
+        if uid not in self.history:
+            self.history[uid] = []  # Initialize history if new user
+
+        if news_ids:  # Only extend if there are new articles
+            self.history[uid].extend(news_ids)
 
         return previous_history
 
@@ -307,7 +323,10 @@ class AnalystBehaviorSimulator:
             #print(f"Error generating behavior for analyst {analyst_uid} with article {article['news_id']}: {e}")
             return None
 
-
+    def format_behaviors(self,df):            
+        df["history"] = df["history"].apply(lambda x: " ".join(x) if isinstance(x, list) else str(x))
+        df["impressions"] = df["impressions"].apply(lambda x: " ".join(x) if isinstance(x, list) else str(x))
+        return df
 
 async def main(total_iterations = None):
     try:
@@ -319,6 +338,7 @@ async def main(total_iterations = None):
         analysts_file = data_path_base + "synthetic_analysts.csv"
         news_file = data_path + "train/news.tsv"
         uid_to_names = data_path + "uid_to_name.tsv"
+        new_behaviors_file = data_path + "analysts_behaviors.tsv"
 
         # Initialize the behavior simulator
         behavior_simulator = AnalystBehaviorSimulator(
@@ -335,7 +355,7 @@ async def main(total_iterations = None):
 
         behaviors = []
         if not total_iterations:
-            total_iterations = len(behavior_simulator.uid_to_names) * 3
+            total_iterations = len(behavior_simulator.uid_to_names) * 1
         with tqdm(total=total_iterations, desc="Processing analysts", unit="iteration") as pbar:
             for _ in range(total_iterations):
                 try:
@@ -402,47 +422,55 @@ async def main(total_iterations = None):
 
                 if len(behaviors) % 5 == 0 or len(behaviors) >= total_iterations:
                     # Define the file path for the CSV
-                    new_behaviors_file = data_path + 'analyst_behavior.csv'
+                    #new_behaviors_file = data_path + 'analysts_behavior.tsv'
 
-                    # Check if the file exists
+                    # Define the file path correctly
+                    new_behaviors_file = os.path.join(data_path, 'analysts_behavior.tsv')
+
+                    # Ensure the file exists and load it properly
                     if os.path.exists(new_behaviors_file):
                         try:
-                            # Check if the file is not empty
                             if os.path.getsize(new_behaviors_file) > 0:
-                                # Load the existing CSV into a DataFrame
-                                existing_behaviors = pd.read_csv(new_behaviors_file)
-                                #print(f"Loaded existing behaviors from {new_behaviors_file}")
+                                existing_behaviors = pd.read_csv(new_behaviors_file, sep="\t", encoding="utf-8")
+                                existing_behaviors["history"] = existing_behaviors["history"].fillna("")
                             else:
-                                # File is empty, create an empty DataFrame
-                                #print(f"{new_behaviors_file} is empty. Initializing a new DataFrame.")
                                 existing_behaviors = pd.DataFrame()
                         except Exception as e:
                             print(f"Error reading {new_behaviors_file}: {e}")
-                            existing_behaviors = pd.DataFrame()  # Create an empty DataFrame if reading fails
+                            existing_behaviors = pd.DataFrame()
                     else:
-                        # Create an empty DataFrame if the file doesn't exist
-                        #print(f"{new_behaviors_file} does not exist. Creating a new one.")
                         existing_behaviors = pd.DataFrame()
 
                     # Convert current behaviors to a DataFrame
                     new_behaviors = pd.DataFrame(behaviors)
 
                     # Combine existing and new behaviors
-                    combined_behaviors = pd.concat([existing_behaviors, new_behaviors], ignore_index=True)
-
-                    # Save the combined DataFrame back to the CSV
+                    combined_behaviors = behavior_simulator.format_behaviors(
+                        pd.concat([existing_behaviors, new_behaviors], ignore_index=True)
+                    )
+                    # Ensure 'history' is never NaN before saving
+                    combined_behaviors["history"] = combined_behaviors["history"].fillna("")
+                    
+                    # Save the combined DataFrame back to the CSV properly
                     try:
-                        combined_behaviors.to_csv(new_behaviors_file, index=False)
-                        #print(f"Saved combined behaviors to {new_behaviors_file}")
-                        # TODO Double check this is working well
+                        combined_behaviors.to_csv(
+                            new_behaviors_file,
+                            sep="\t",
+                            index=False,
+                            header=True,
+                            quoting=csv.QUOTE_MINIMAL,  # Ensure proper handling of special characters
+                            encoding="utf-8"
+                        )
+
+                        # Double-check if history saving is needed
                         behavior_simulator.save_history_to_tsv()
-                        
+
                     except Exception as e:
                         print(f"Error saving to {new_behaviors_file}: {e}")
 
                     # Reset the behaviors list
                     behaviors = []
- 
+
  
         print("Processing complete")
 
