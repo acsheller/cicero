@@ -284,8 +284,8 @@ class SimulatedAnalystGenerator:
 
                             if len(profiles) % 5 == 0 or self.total_required_profiles == len(self.analysts) + len(profiles):
                             
-                                print(f"Preparing to save Data. length of Analysts is: {len(self.analysts)}")
-                                print(f"Length of Profiles is {len(profiles)}")
+                                #print(f"Preparing to save Data. length of Analysts is: {len(self.analysts)}")
+                                #print(f"Length of Profiles is {len(profiles)}")
                                 new_data = pd.DataFrame(profiles)
                                 new_data["name"] = new_data["name"].str.strip()
 
