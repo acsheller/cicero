@@ -14,18 +14,6 @@ from pydantic_ai.models.ollama import OllamaModel
 from typing import Dict, Optional, List, ClassVar
 
 
-# This should be mounted into the contaainer when it runs
-# /app/datasets when running in container
-data_path_base = "/home/asheller/cicero/datasets/"
-
-#model_name = "mistral:7b"  # Replace with your preferred model
-model_name = "cogito:8b"  # Replace with your preferred model
-
-
-ollama_url = "http://localhost:11434/v1/"  # Ollama's default base URL
-
-
-
 ANALYST_AREAS = [
     "Global Politics",
     "Economics and Markets",
@@ -134,7 +122,7 @@ class SimulatedAnalystGenerator:
     A class to geneate Simulated Users using LLMs
     '''
 
-    def __init__(self,analysts_file,num_profiles):
+    def __init__(self,analysts_file,num_profiles,ollama_url,model_name):
         """
         Constructor
 
@@ -165,6 +153,7 @@ class SimulatedAnalystGenerator:
         This depends on an ollama server running serving-up models.
 
         '''
+        print(f"Connecting to Ollama at {ollama_url} with model {model_name}")
 
         self.ollama_model = OllamaModel(
         model_name=model_name,  
@@ -312,9 +301,19 @@ class SimulatedAnalystGenerator:
 
 if __name__ == '__main__':
 
+    # This should be mounted into the contaainer when it runs
+    # /app/datasets when running in container
+    data_path_base = "/home/asheller/cicero/datasets/"
+
+    #model_name = "mistral:7b"  # Replace with your preferred model
+    model_name = "cogito:8b"  # Replace with your preferred model
+
+
+    ollama_url = "http://localhost:11434/v1/"  # Ollama's default base URL
+
 
     analyst_file = data_path_base + "synthetic_analysts2.csv"
-    analyst_generator = SimulatedAnalystGenerator(analysts_file=analyst_file,num_profiles=10)
+    analyst_generator = SimulatedAnalystGenerator(analysts_file=analyst_file,num_profiles=10,ollama_url=ollama_url,model_name=model_name)
     try:
         asyncio.run(analyst_generator.generate_profiles(num_profiles=10))
 
