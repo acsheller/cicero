@@ -19,7 +19,8 @@ from typing import Dict, Optional, List, ClassVar
 data_path_base = "/home/asheller/cicero/datasets/"
 
 #model_name = "mistral:7b"  # Replace with your preferred model
-model_name = "llama3.2"  # Replace with your preferred model
+model_name = "cogito:8b"  # Replace with your preferred model
+
 
 ollama_url = "http://localhost:11434/v1/"  # Ollama's default base URL
 
@@ -67,11 +68,13 @@ class AnalystProfile(BaseModel):
     job: str = Field(description= 'Job title  e.g. Technology Analyst')
     description: str = Field(description='The background of the analyst in their field of expertise')
 
+    used_names: ClassVar[set] = set()  # Class variable to store used names
 
     # Validate name
     @field_validator("name")
     @classmethod
     def validate_name(cls, name):
+        #print(f"Validating name: {name}")
         # Validate the name format (first and last name, optionally a middle name)
         if not re.fullmatch(r"[A-Za-z.-]+( [A-Za-z.-]+){1,2}", name):
             raise ValueError("Name must have at least a first and last name, optionally a middle name.")
@@ -79,7 +82,6 @@ class AnalystProfile(BaseModel):
         # Check for duplicates in the existing names set
         if name.strip() in cls.used_names:
             raise ValueError(f"Name '{name}' is already used.")
-
         return name.strip()  # Normalize the name (strip whitespace)
 
 
@@ -203,7 +205,7 @@ class SimulatedAnalystGenerator:
             required_fields = ["name", "age", "gender", "primary_news_interest",
                             "secondary_news_interest", "job", "description"]
             if not all(field in profile for field in required_fields):
-                print("Missing required fields.")
+                #print("Missing required fields.")
                 return None
 
             # Validate using Pydantic model
@@ -249,12 +251,13 @@ class SimulatedAnalystGenerator:
                 result = await self.agent.run(prompt)
                 if result:
                     profile = self.validate_analyst_data(result.data)
+                    #print(f"Profile generated: {profile}")
                 if profile:
                     return profile
             except Exception as e:
                 pass
                 # Uncomment the below to see the exception.  it happens frequently. 
-                # print(f"Exception during profile generation (attempt {attempt + 1}:  {e})")
+                #print(f"Exception during profile generation (attempt {attempt + 1}:  {e})")
         return None
 
 
@@ -287,16 +290,16 @@ class SimulatedAnalystGenerator:
                                 new_data["name"] = new_data["name"].str.strip()
 
                                 # Check for duplicates
-                                duplicate_profiles = new_data[new_data["name"].isin(self.analysts["name"])]
-                                print(f"Duplicate profiles being removed: {len(duplicate_profiles)}")
+                                #duplicate_profiles = new_data[new_data["name"].isin(self.analysts["name"])]
+                                #print(f"Duplicate profiles being removed: {len(duplicate_profiles)}")
 
                                 self.analysts = pd.concat([self.analysts, new_data], ignore_index=True).drop_duplicates(subset="name",keep="first").reset_index(drop=True)
                                 self.analysts.to_csv(self.analysts_file,index=False)
 
                                 profiles = []
-                                print(f"Length of Analysts is now: {len(self.analysts)}")
-                                print(f"Length of Profiles is {len(profiles)}")
-                                print(f"Total Required Profiles: {self.total_required_profiles}, Current Total: {len(self.analysts) + len(profiles)}")                               
+                                #print(f"Length of Analysts is now: {len(self.analysts)}")
+                                #print(f"Length of Profiles is {len(profiles)}")
+                                #print(f"Total Required Profiles: {self.total_required_profiles}, Current Total: {len(self.analysts) + len(profiles)}")                               
                                 if self.total_required_profiles == len(self.analysts) + len(profiles):
                                     break
                     except Exception as e:
@@ -311,9 +314,9 @@ if __name__ == '__main__':
 
 
     analyst_file = data_path_base + "synthetic_analysts2.csv"
-    analyst_generator = SimulatedAnalystGenerator(analysts_file=analyst_file,num_profiles=1000)
+    analyst_generator = SimulatedAnalystGenerator(analysts_file=analyst_file,num_profiles=10)
     try:
-        asyncio.run(analyst_generator.generate_profiles(num_profiles=1000))
+        asyncio.run(analyst_generator.generate_profiles(num_profiles=10))
 
     except Exception as e:
         print(f"some sort of exeception {e}")
