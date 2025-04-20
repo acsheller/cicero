@@ -20,18 +20,6 @@ from pydantic_ai.models.ollama import OllamaModel
 
 
 
-# Depending on if you are working in the container or not.  
-# data_path_base = "/home/asheller/cicero/datasets/" Would be outside the container
-#data_path_base = "/app/datasets/"
-
-# It is currently set to
-data_path_base = "/home/asheller/cicero/datasets/"
-
-model_name = "mistral:7b"  # Replace with your preferred model
-#model_name = "llama3.2"  # Replace with your preferred model
-#model_name = "deepseek-r1:7b"  # Replace with your preferred model
-
-base_url = "http://localhost:11434/v1/"  # Ollama's default base URL
 
 
 class AnalystBehavior(BaseModel):
@@ -92,7 +80,7 @@ class AnalystBehaviorSimulator:
     A class to simulate analyst behaviors interacting with news articles using an LLM.
     """
     
-    def __init__(self, history_file,analysts_file,behaviors_file,news_file,uid_to_names):
+    def __init__(self, history_file,analysts_file,behaviors_file,news_file,uid_to_names,analysts_behavior_file):
         """
         Initialize the simulator with an LLM agent and tracking for analysts.
 
@@ -110,6 +98,7 @@ class AnalystBehaviorSimulator:
         self.behaviors_file = behaviors_file
         self.news_file = news_file
         self.uid_to_names_file = uid_to_names
+        self.analysts_behavior_file = analysts_behavior_file
 
         
         self.analysts = pd.read_csv(self.analysts_file)
@@ -158,14 +147,32 @@ class AnalystBehaviorSimulator:
         else:
             print(f'{self.history_file} does not exist. Creating a new one.')
             self.history = {}
+        
+        ## Check the analysts file and gt the max_impreession_id
+        if os.path.exists(self.analysts_behavior_file):
+            try:
+                if os.path.getsize(self.analysts_behavior_file) > 0:
+                    self.analysts_behaviors = pd.read_csv(self.analysts_behavior_file, sep="\t")
+                    #self.analysts_behaviors.columns = ["impression_id", "user_id", "time", "history", "impressions"]
+                    max_impression_id = self.analysts_behaviors["impression_id"].max()
+                else:
+                    print(f'{self.analysts_behavior_file} is empty.')
+                    max_impression_id = 0
+                    # Need to create a next impression ID to be used.abs
+                    max_impression_id = self.behaviors["impression_id"].max()
+                self.current_impression_id = max_impression_id + 1
+
+            except Exception as e:
+                print(f'Error reading {self.analysts_behavior_file}: {e}')
+                max_impression_id = 0
+        else:
+            max_impression_id = self.behaviors["impression_id"].max()
+            self.current_impression_id = max_impression_id + 1   
 
         # Ensure all analysts have an entry in history
         self.ensure_all_uids_have_history()
 
 
-        # Need to create a next impression ID to be used.abs
-        max_impression_id = self.behaviors["impression_id"].max()
-        self.current_impression_id = max_impression_id + 1
 
     def ensure_all_uids_have_history(self):
         """
@@ -328,7 +335,7 @@ class AnalystBehaviorSimulator:
         df["impressions"] = df["impressions"].apply(lambda x: " ".join(x) if isinstance(x, list) else str(x))
         return df
 
-async def main(total_iterations = None):
+async def main(total_iterations = None, data_path_base = "/app/datasets/",MIND_type = "MINDsmall", model_name = "llama3.2",base_url="http://localhost:11434/v1/"):
     try:
         MIND_type = "MINDsmall"
         data_path = data_path_base + MIND_type + "/"
@@ -338,7 +345,7 @@ async def main(total_iterations = None):
         analysts_file = data_path_base + "synthetic_analysts.csv"
         news_file = data_path + "train/news.tsv"
         uid_to_names = data_path + "uid_to_name.tsv"
-        new_behaviors_file = data_path + "analysts_behaviors.tsv"
+        new_behaviors_file = data_path + "analysts_behavior.tsv"
 
         # Initialize the behavior simulator
         behavior_simulator = AnalystBehaviorSimulator(
@@ -346,7 +353,8 @@ async def main(total_iterations = None):
             analysts_file=analysts_file,
             behaviors_file=behaviors_file,
             news_file=news_file,
-            uid_to_names=uid_to_names
+            uid_to_names=uid_to_names,
+            analysts_behavior_file=new_behaviors_file
         )
 
         # Connect to Ollama server and create the agent
@@ -367,6 +375,7 @@ async def main(total_iterations = None):
 
                     # Step 3: Get the next impression ID
                     impression_id = behavior_simulator.current_impression_id
+                    behavior_simulator.current_impression_id += 1
 
                     # Step 4: Generate behavior for each article with retry logic
                     impressions_this_session = []
@@ -481,4 +490,17 @@ async def main(total_iterations = None):
 
 if __name__ == '__main__':
     # With no arguments it will run for 3x the number of analysts.
-    asyncio.run(main())
+    # Depending on if you are working in the container or not.  
+    data_path_base = "/home/asheller/cicero/datasets/" #Would be outside the container
+    #data_path_base = "/app/datasets/" # Inside the contaainer
+
+
+    #model_name = "mistral:7b"  # Replace with your preferred model
+    #model_name = "llama3.2"  # Replace with your preferred model
+    model_name = "cogito:8b"  # Replace with your preferred model
+    #base_url = "http://ollama:11434/v1/"  # Ollama's default base URL inside container
+    base_url = "http://localhost:11434/v1/"  # Ollama's default base URL outside container 
+
+
+
+    asyncio.run(main(data_path_base=data_path_base, MIND_type="MINDsmall", model_name=model_name,base_url=base_url)) 

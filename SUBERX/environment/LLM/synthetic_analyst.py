@@ -302,16 +302,19 @@ class SimulatedAnalystGenerator:
 if __name__ == '__main__':
 
     # This should be mounted into the contaainer when it runs
+    # Or if you are running outside of the container, set it to ~/cicero/datasets
     # /app/datasets when running in container
     data_path_base = "/home/asheller/cicero/datasets/"
 
     #model_name = "mistral:7b"  # Replace with your preferred model
     model_name = "cogito:8b"  # Replace with your preferred model
 
-
+    # This could be http://olloma:11434/v1/ if you are running inisde the SUBER Container
     ollama_url = "http://localhost:11434/v1/"  # Ollama's default base URL
 
 
+    # This will create a new file if given a new name but will also append ot the file if it 
+    # is a valid synthetic analyst file.   
     analyst_file = data_path_base + "synthetic_analysts2.csv"
     analyst_generator = SimulatedAnalystGenerator(analysts_file=analyst_file,num_profiles=10,ollama_url=ollama_url,model_name=model_name)
     try:

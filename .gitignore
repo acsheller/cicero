@@ -196,3 +196,4 @@ novnc/home/guser/*
 model/
 
 nltk_data/
+datasets/MINDsmall/analysts_behavior.tsv.bak
