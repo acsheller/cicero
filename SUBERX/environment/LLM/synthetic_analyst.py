@@ -303,14 +303,15 @@ if __name__ == '__main__':
 
     # This should be mounted into the contaainer when it runs
     # Or if you are running outside of the container, set it to ~/cicero/datasets
-    # /app/datasets when running in container
-    data_path_base = "/home/asheller/cicero/datasets/"
+    data_path_base = "/app/datasets" # when running in container
+    #data_path_base = "/home/asheller/cicero/datasets/"  # Outside the container.
 
     #model_name = "mistral:7b"  # Replace with your preferred model
     model_name = "cogito:8b"  # Replace with your preferred model
 
-    # This could be http://olloma:11434/v1/ if you are running inisde the SUBER Container
-    ollama_url = "http://localhost:11434/v1/"  # Ollama's default base URL
+    # This could be http://ollama:11434/v1/ if you are running inisde the SUBER Container
+    # It could also be http://localhost:11434/v1 if running outside the container
+    ollama_url = "http://ollama:11434/v1/"  # Ollama's default base URL
 
 
     # This will create a new file if given a new name but will also append ot the file if it 

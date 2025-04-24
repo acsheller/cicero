@@ -197,3 +197,4 @@ model/
 
 nltk_data/
 datasets/MINDsmall/analysts_behavior.tsv.bak
+datasets.tar.gz

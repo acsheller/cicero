@@ -491,15 +491,15 @@ async def main(total_iterations = None, data_path_base = "/app/datasets/",MIND_t
 if __name__ == '__main__':
     # With no arguments it will run for 3x the number of analysts.
     # Depending on if you are working in the container or not.  
-    data_path_base = "/home/asheller/cicero/datasets/" #Would be outside the container
-    #data_path_base = "/app/datasets/" # Inside the contaainer
+    #data_path_base = "/home/asheller/cicero/datasets/" #Would be outside the container
+    data_path_base = "/app/datasets/" # Inside the contaainer
 
 
     #model_name = "mistral:7b"  # Replace with your preferred model
     #model_name = "llama3.2"  # Replace with your preferred model
     model_name = "cogito:8b"  # Replace with your preferred model
-    #base_url = "http://ollama:11434/v1/"  # Ollama's default base URL inside container
-    base_url = "http://localhost:11434/v1/"  # Ollama's default base URL outside container 
+    base_url = "http://ollama:11434/v1/"  # Ollama's default base URL inside container
+    #base_url = "http://localhost:11434/v1/"  # Ollama's default base URL outside container 
 
 
 
